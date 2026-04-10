@@ -35,10 +35,13 @@ export class DropboxService {
   async downloadFile(path: string): Promise<string> {
     try {
       const response = await this.dbx.filesDownload({ path });
-      // In browser, the file content is in 'fileBlob' or 'fileBinary'
       const fileBlob = (response.result as any).fileBlob;
       return await fileBlob.text();
-    } catch (error) {
+    } catch (error: any) {
+      if (error.status === 409) {
+        console.error('Dropbox 409: File non trovato al percorso:', path);
+        throw new Error(`File non trovato su Dropbox al percorso "${path}". Assicurati che il file esista e che il percorso inizi con "/".`);
+      }
       console.error('Error downloading file:', error);
       throw error;
     }

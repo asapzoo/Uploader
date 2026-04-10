@@ -321,7 +321,16 @@ export default function App() {
     setStatus('1/3 — Lettura file XML da Dropbox...');
     try {
       const dbx = new DropboxService(dbxConfig.token);
-      const currentXml = await dbx.downloadFile(dbxConfig.path);
+      let currentXml = '';
+      
+      try {
+        currentXml = await dbx.downloadFile(dbxConfig.path);
+      } catch (err: any) {
+        if (err.message.includes('non trovato')) {
+          throw new Error(`Il file "${dbxConfig.path}" non esiste su Dropbox. Crealo manualmente nel tuo Dropbox prima di caricare, oppure controlla che il percorso sia corretto (deve iniziare con /).`);
+        }
+        throw err;
+      }
 
       setStatus('2/3 — Aggiornamento XML...');
       const updatedXml = updateXmlLogic(currentXml, newItem);
@@ -334,7 +343,7 @@ export default function App() {
       setItemGuid('');
       setDatesUpdated(false);
     } catch (err: any) {
-      showToast('Errore: ' + err.message, 'error');
+      showToast(err.message, 'error');
     } finally {
       setLoading(false);
       setStatus('');
