@@ -1,0 +1,74 @@
+@import "tailwindcss";
+
+@theme {
+  --font-sans: Arial, Helvetica, sans-serif;
+  --font-mono: Arial, monospace;
+}
+
+@layer base {
+  :root {
+    --bg: #0a0a0f;
+    --surface: #12121a;
+    --surface2: #1a1a26;
+    --border: #2a2a3e;
+    --accent: #ff3c3c;
+    --accent2: #7c4dff;
+    --green: #00e676;
+    --gold: #ffd740;
+    --text: #e8e8f0;
+    --muted: #7070a0;
+    --radius: 10px;
+  }
+
+  html {
+    font-size: 18px;
+  }
+
+  body {
+    @apply bg-[#0a0a0f] text-[#e8e8f0] font-sans min-h-screen;
+  }
+}
+
+@layer components {
+  .panel {
+    @apply bg-[#12121a] border border-[#2a2a3e] rounded-[10px] p-7 mb-5;
+  }
+
+  .panel-title {
+    @apply font-mono text-[11px] tracking-[2px] uppercase text-[#7070a0] mb-5 flex items-center gap-2.5 after:content-[''] after:flex-1 after:h-[1px] after:bg-[#2a2a3e];
+  }
+
+  .btn-hdr {
+    @apply bg-transparent border border-[#2a2a3e] text-[#7070a0] px-3.5 py-1.5 rounded-[10px] cursor-pointer font-mono text-xs tracking-[0.5px] transition-all hover:border-[#7c4dff] hover:text-[#e8e8f0];
+  }
+
+  .btn-submit {
+    @apply w-full p-4 bg-[#ff3c3c] text-white border-none rounded-[10px] font-['Bebas_Neue'] text-[22px] tracking-[3px] cursor-pointer transition-all mt-2 hover:bg-[#ff5555] hover:-translate-y-[1px] disabled:bg-[#7070a0] disabled:cursor-not-allowed disabled:opacity-60;
+  }
+
+  .btn-secondary {
+    @apply w-full p-3 bg-transparent text-[#7070a0] border border-[#2a2a3e] rounded-[10px] font-mono text-[13px] cursor-pointer transition-all mt-2.5 hover:border-[#7c4dff] hover:text-[#e8e8f0];
+  }
+
+  .type-btn {
+    @apply bg-[#1a1a26] border border-[#2a2a3e] text-[#7070a0] p-3 rounded-lg cursor-pointer font-mono text-xs text-center transition-all leading-[1.4] relative hover:border-[#7c4dff] hover:text-[#e8e8f0];
+  }
+
+  .type-btn.active {
+    @apply border-[#ff3c3c] text-[#ff3c3c] bg-[rgba(255,60,60,0.08)];
+  }
+
+  .xml-block {
+    @apply bg-[#090910] border border-[#2a2a3e] rounded-[7px] p-4 font-mono text-[11.5px] leading-[1.7] text-[#7090c0] whitespace-pre-wrap break-all max-h-[260px] overflow-y-auto;
+  }
+}
+
+@keyframes pulse-green {
+  0%   { box-shadow: 0 0 0 0 rgba(0,230,118,0.5); }
+  70%  { box-shadow: 0 0 0 10px rgba(0,230,118,0); }
+  100% { box-shadow: 0 0 0 0 rgba(0,230,118,0); }
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}

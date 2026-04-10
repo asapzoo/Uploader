@@ -1,0 +1,5 @@
+{
+  "name": "Zoo XML Dropbox Uploader",
+  "description": "A web application to modify and upload zoo data XML files directly to Dropbox, ensuring sharing links remain consistent.",
+  "requestFramePermissions": []
+}
