@@ -251,11 +251,21 @@ export default function App() {
     setLoading(true);
     setStatus('1/3 — Lettura file XML da GitHub...');
     try {
+      // Aggiungiamo un timestamp per evitare la cache di GitHub che causa il 409
       const getResp = await fetch(
-        `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}?ref=${ghConfig.branch}`,
-        { headers: { 'Authorization': `token ${ghConfig.token}`, 'Accept': 'application/vnd.github.v3+json' } }
+        `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}?ref=${ghConfig.branch}&t=${Date.now()}`,
+        { 
+          headers: { 
+            'Authorization': `token ${ghConfig.token}`, 
+            'Accept': 'application/vnd.github.v3+json',
+            'Cache-Control': 'no-cache'
+          } 
+        }
       );
-      if (!getResp.ok) { const e = await getResp.json(); throw new Error(`GitHub API: ${e.message || getResp.status}`); }
+      if (!getResp.ok) { 
+        const e = await getResp.json(); 
+        throw new Error(`GitHub API (Read): ${e.message || getResp.status}`); 
+      }
       const fileData = await getResp.json();
       const sha = fileData.sha;
       const currentXml = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
@@ -268,7 +278,11 @@ export default function App() {
         `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}`,
         {
           method: 'PUT',
-          headers: { 'Authorization': `token ${ghConfig.token}`, 'Accept': 'application/vnd.github.v3+json', 'Content-Type': 'application/json' },
+          headers: { 
+            'Authorization': `token ${ghConfig.token}`, 
+            'Accept': 'application/vnd.github.v3+json', 
+            'Content-Type': 'application/json' 
+          },
           body: JSON.stringify({ 
             message: `Add: ${itemTitle}`, 
             content: btoa(unescape(encodeURIComponent(updatedXml))), 
@@ -277,7 +291,13 @@ export default function App() {
           })
         }
       );
-      if (!putResp.ok) { const e = await putResp.json(); throw new Error(`Push fallito: ${e.message || putResp.status}`); }
+      if (!putResp.ok) { 
+        const e = await putResp.json(); 
+        if (putResp.status === 409) {
+          throw new Error("Conflitto di versione (409). Riprova tra pochi secondi, GitHub sta ancora processando il file.");
+        }
+        throw new Error(`Push fallito: ${e.message || putResp.status}`); 
+      }
 
       showToast(`✓ "${itemTitle}" pubblicato su GitHub!`, 'success');
       setMediaUrl('');
