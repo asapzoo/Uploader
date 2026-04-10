@@ -338,7 +338,23 @@ export default function App() {
       setStatus('3/3 — Pubblicazione su Dropbox...');
       await dbx.uploadFile(dbxConfig.path, updatedXml);
 
-      showToast(`✓ "${itemTitle}" pubblicato su Dropbox!`, 'success');
+      // Salvataggio copia di backup nella cartella "xml rss" con data ITA
+      try {
+        const now = new Date();
+        const day = String(now.getDate()).padStart(2, '0');
+        const month = String(now.getMonth() + 1).padStart(2, '0');
+        const year = now.getFullYear();
+        const dateStr = `${day}-${month}-${year}`;
+        const backupPath = `/xml rss/105Zoo-${dateStr}.xml`;
+        
+        await dbx.uploadFile(backupPath, updatedXml);
+        console.log(`Backup ${backupPath} salvato con successo`);
+      } catch (backupErr) {
+        console.error('Errore durante il salvataggio del backup:', backupErr);
+        // Non blocchiamo l'operazione principale se il backup fallisce
+      }
+
+      showToast(`✓ "${itemTitle}" pubblicato su Dropbox! (Backup creato in /xml rss/)`, 'success');
       setMediaUrl('');
       setItemGuid('');
       setDatesUpdated(false);
