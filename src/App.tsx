@@ -251,27 +251,33 @@ export default function App() {
     setLoading(true);
     setStatus('1/3 — Lettura file XML da GitHub...');
     try {
-      if (!ghConfig.owner || !ghConfig.repo || !ghConfig.path) {
+      const owner = ghConfig.owner.trim();
+      const repo = ghConfig.repo.trim();
+      const path = ghConfig.path.trim();
+      const branch = ghConfig.branch.trim();
+      const token = ghConfig.token.trim();
+
+      if (!owner || !repo || !path) {
         throw new Error("Configurazione GitHub incompleta (Owner, Repo o Path mancanti)");
       }
 
-      // Pulizia path: rimuoviamo slash iniziali se presenti per l'API
-      const cleanPath = ghConfig.path.startsWith('/') ? ghConfig.path.substring(1) : ghConfig.path;
+      // Pulizia path: rimuoviamo slash iniziali e codifichiamo ogni segmento separatamente
+      const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+      const encodedPath = cleanPath.split('/').map(part => encodeURIComponent(part)).join('/');
       
-      // Costruiamo l'URL senza codificare gli slash (/) del percorso cartelle
-      const url = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${cleanPath}?ref=${ghConfig.branch}&t=${Date.now()}`;
+      const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}&t=${Date.now()}`;
       
       let getResp;
       try {
         getResp = await fetch(url, { 
           headers: { 
-            'Authorization': `token ${ghConfig.token}`, 
+            'Authorization': `token ${token}`, 
             'Accept': 'application/vnd.github.v3+json'
           } 
         });
       } catch (fetchErr) {
         console.error('Fetch Error:', fetchErr);
-        throw new Error("Errore di rete o CORS: Impossibile contattare GitHub. Verifica la tua connessione o se un'estensione del browser sta bloccando la richiesta.");
+        throw new Error("Errore di rete o CORS: Impossibile contattare GitHub.");
       }
       if (!getResp.ok) { 
         const e = await getResp.json(); 
@@ -279,7 +285,16 @@ export default function App() {
       }
       const fileData = await getResp.json();
       const sha = fileData.sha;
-      const currentXml = decodeURIComponent(escape(atob(fileData.content.replace(/\n/g, ''))));
+
+      // Decodifica robusta per Safari/iOS
+      const fromBase64 = (b64: string) => {
+        const bin = window.atob(b64.replace(/\s/g, ''));
+        const u8 = new Uint8Array(bin.length);
+        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+        return new TextDecoder().decode(u8);
+      };
+      
+      const currentXml = fromBase64(fileData.content);
 
       setStatus('2/3 — Aggiornamento XML...');
       const updatedXml = updateXmlLogic(currentXml, newItem);
@@ -297,16 +312,16 @@ export default function App() {
       };
 
       if (!sha) throw new Error("SHA del file non trovato. Riprova.");
-      if (!ghConfig.branch) throw new Error("Branch non configurato.");
+      if (!branch) throw new Error("Branch non configurato.");
 
       let putResp;
       try {
         putResp = await fetch(
-          `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${cleanPath}`,
+          `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`,
           {
             method: 'PUT',
             headers: { 
-              'Authorization': `token ${ghConfig.token}`, 
+              'Authorization': `token ${token}`, 
               'Accept': 'application/vnd.github.v3+json', 
               'Content-Type': 'application/json' 
             },
@@ -314,13 +329,13 @@ export default function App() {
               message: `Add: ${itemTitle}`, 
               content: toBase64(updatedXml), 
               sha, 
-              branch: ghConfig.branch 
+              branch: branch 
             })
           }
         );
       } catch (putErr) {
         console.error('Put Fetch Error:', putErr);
-        throw new Error("Errore di rete durante l'invio a GitHub. Verifica la connessione.");
+        throw new Error("Errore di rete durante l'invio a GitHub.");
       }
       if (!putResp.ok) { 
         const e = await putResp.json(); 
