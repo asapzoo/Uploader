@@ -251,17 +251,28 @@ export default function App() {
     setLoading(true);
     setStatus('1/3 — Lettura file XML da GitHub...');
     try {
-      // Aggiungiamo un timestamp per evitare la cache di GitHub che causa il 409
-      const getResp = await fetch(
-        `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}?ref=${ghConfig.branch}&t=${Date.now()}`,
-        { 
+      if (!ghConfig.owner || !ghConfig.repo || !ghConfig.path) {
+        throw new Error("Configurazione GitHub incompleta (Owner, Repo o Path mancanti)");
+      }
+
+      // Pulizia path: rimuoviamo slash iniziali se presenti per l'API
+      const cleanPath = ghConfig.path.startsWith('/') ? ghConfig.path.substring(1) : ghConfig.path;
+      
+      // Costruiamo l'URL senza codificare gli slash (/) del percorso cartelle
+      const url = `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${cleanPath}?ref=${ghConfig.branch}&t=${Date.now()}`;
+      
+      let getResp;
+      try {
+        getResp = await fetch(url, { 
           headers: { 
             'Authorization': `token ${ghConfig.token}`, 
-            'Accept': 'application/vnd.github.v3+json',
-            'Cache-Control': 'no-cache'
+            'Accept': 'application/vnd.github.v3+json'
           } 
-        }
-      );
+        });
+      } catch (fetchErr) {
+        console.error('Fetch Error:', fetchErr);
+        throw new Error("Errore di rete o CORS: Impossibile contattare GitHub. Verifica la tua connessione o se un'estensione del browser sta bloccando la richiesta.");
+      }
       if (!getResp.ok) { 
         const e = await getResp.json(); 
         throw new Error(`GitHub API (Read): ${e.message || getResp.status}`); 
@@ -274,29 +285,52 @@ export default function App() {
       const updatedXml = updateXmlLogic(currentXml, newItem);
 
       setStatus('3/3 — Pubblicazione su GitHub...');
-      const putResp = await fetch(
-        `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${ghConfig.path}`,
-        {
-          method: 'PUT',
-          headers: { 
-            'Authorization': `token ${ghConfig.token}`, 
-            'Accept': 'application/vnd.github.v3+json', 
-            'Content-Type': 'application/json' 
-          },
-          body: JSON.stringify({ 
-            message: `Add: ${itemTitle}`, 
-            content: btoa(unescape(encodeURIComponent(updatedXml))), 
-            sha, 
-            branch: ghConfig.branch 
-          })
+      
+      // Funzione robusta per Base64 compatibile con UTF-8 e Safari/iOS
+      const toBase64 = (str: string) => {
+        const bytes = new TextEncoder().encode(str);
+        let binary = '';
+        for (let i = 0; i < bytes.byteLength; i++) {
+          binary += String.fromCharCode(bytes[i]);
         }
-      );
+        return window.btoa(binary);
+      };
+
+      if (!sha) throw new Error("SHA del file non trovato. Riprova.");
+      if (!ghConfig.branch) throw new Error("Branch non configurato.");
+
+      let putResp;
+      try {
+        putResp = await fetch(
+          `https://api.github.com/repos/${ghConfig.owner}/${ghConfig.repo}/contents/${cleanPath}`,
+          {
+            method: 'PUT',
+            headers: { 
+              'Authorization': `token ${ghConfig.token}`, 
+              'Accept': 'application/vnd.github.v3+json', 
+              'Content-Type': 'application/json' 
+            },
+            body: JSON.stringify({ 
+              message: `Add: ${itemTitle}`, 
+              content: toBase64(updatedXml), 
+              sha, 
+              branch: ghConfig.branch 
+            })
+          }
+        );
+      } catch (putErr) {
+        console.error('Put Fetch Error:', putErr);
+        throw new Error("Errore di rete durante l'invio a GitHub. Verifica la connessione.");
+      }
       if (!putResp.ok) { 
         const e = await putResp.json(); 
         if (putResp.status === 409) {
           throw new Error("Conflitto di versione (409). Riprova tra pochi secondi, GitHub sta ancora processando il file.");
         }
-        throw new Error(`Push fallito: ${e.message || putResp.status}`); 
+        if (putResp.status === 400) {
+          throw new Error(`Errore 400 (Bad Request): ${e.message || 'Dati inviati non validi'}. Verifica che il branch "${ghConfig.branch}" esista.`);
+        }
+        throw new Error(`Push fallito (${putResp.status}): ${e.message || JSON.stringify(e)}`); 
       }
 
       showToast(`✓ "${itemTitle}" pubblicato su GitHub!`, 'success');
