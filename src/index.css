@@ -7,17 +7,17 @@
 
 @layer base {
   :root {
-    --bg: #0a0a0f;
-    --surface: #12121a;
-    --surface2: #1a1a26;
-    --border: #2a2a3e;
-    --accent: #ff3c3c;
-    --accent2: #7c4dff;
-    --green: #00e676;
-    --gold: #ffd740;
-    --text: #e8e8f0;
-    --muted: #7070a0;
-    --radius: 10px;
+    --bg: #050508;
+    --surface: #1a1a26;
+    --surface2: #252535;
+    --border: #3f3f5a;
+    --accent: #ff4d4d;
+    --accent2: #9b73ff;
+    --green: #00ff80;
+    --gold: #ffeb3b;
+    --text: #ffffff;
+    --muted: #b0b0d0;
+    --radius: 12px;
   }
 
   html {

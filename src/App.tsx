@@ -486,27 +486,23 @@ export default function App() {
     <div className="min-h-screen bg-[#0a0a0f] text-[#e8e8f0] font-sans selection:bg-[#ff3c3c] selection:text-white">
       {/* Header */}
       <header className="bg-[#12121a] border-b border-[#2a2a3e] px-6 h-[60px] flex items-center justify-between sticky top-0 z-50">
-        <div className="font-sans font-bold text-3xl tracking-widest text-[#ff3c3c]">
-          Rec-Zoo<span className="text-[#e8e8f0]">1o5</span> RSS
+        <div className="font-sans font-bold text-3xl tracking-widest text-[var(--accent)]">
+          Rec-Zoo<span className="text-[var(--text)]">1o5</span> RSS
         </div>
         <div className="flex items-center gap-4">
-          <div className="flex items-center gap-2">
-            <div className={cn("w-2 h-2 rounded-full", (ghConfig.token || dbxConfig.token) ? "bg-[#00e676] shadow-[0_0_8px_#00e676]" : "bg-[#7070a0]")} />
-            <span className="font-mono text-xs text-[#7070a0]">
-              {ghConfig.token ? `${ghConfig.owner}/${ghConfig.repo}` : dbxConfig.token ? "Dropbox Connected" : "Non configurato"}
-            </span>
-          </div>
           <div className="flex gap-2">
             <button 
               onClick={() => setIsConfigOpen(true)}
               className="btn-hdr flex items-center gap-2"
             >
+              <div className={cn("w-1.5 h-1.5 rounded-full", ghConfig.token ? "bg-[var(--green)] shadow-[0_0_4px_var(--green)]" : "bg-[var(--muted)]")} />
               <Github size={14} /> GitHub
             </button>
             <button 
               onClick={() => setIsDbxConfigOpen(true)}
-              className="btn-hdr flex items-center gap-2 hover:border-[#0061ff]"
+              className="btn-hdr flex items-center gap-2 hover:border-[var(--accent2)]"
             >
+              <div className={cn("w-1.5 h-1.5 rounded-full", dbxConfig.token ? "bg-[var(--green)] shadow-[0_0_4px_var(--green)]" : "bg-[var(--muted)]")} />
               <Database size={14} /> Dropbox
             </button>
           </div>
@@ -520,7 +516,7 @@ export default function App() {
             01 — Tipo episodio
           </div>
 
-          <div className="font-mono text-[10px] tracking-[2px] uppercase text-[#7070a0] mb-2.5">Tipi fissi</div>
+          <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mb-2.5">Tipi fissi</div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
             {FIXED_TYPES.map(t => (
               <button
@@ -537,7 +533,7 @@ export default function App() {
             ))}
           </div>
 
-          <div className="font-mono text-[10px] tracking-[2px] uppercase text-[#7070a0] mt-[18px] mb-2.5">Tipi personalizzati</div>
+          <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mt-[18px] mb-2.5">Tipi personalizzati</div>
           <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
             {customTypes.map(t => (
               <div key={t.id} className="relative group">
@@ -577,10 +573,10 @@ export default function App() {
           </div>
 
           <div className="flex gap-2.5 mt-4">
-            <button onClick={exportTypes} className="flex-1 bg-transparent border border-[#2a2a3e] text-[#7070a0] p-2 rounded-lg font-mono text-[11px] hover:border-[#7c4dff] hover:text-[#e8e8f0] transition-all">
+            <button onClick={exportTypes} className="flex-1 bg-transparent border border-[var(--border)] text-[var(--muted)] p-2 rounded-lg font-mono text-[12px] font-bold hover:border-[var(--accent2)] hover:text-[var(--text)] transition-all">
               ⬇ Esporta tipi (JSON)
             </button>
-            <button onClick={() => document.getElementById('importFile')?.click()} className="flex-1 bg-transparent border border-[#2a2a3e] text-[#7070a0] p-2 rounded-lg font-mono text-[11px] hover:border-[#7c4dff] hover:text-[#e8e8f0] transition-all">
+            <button onClick={() => document.getElementById('importFile')?.click()} className="flex-1 bg-transparent border border-[var(--border)] text-[var(--muted)] p-2 rounded-lg font-mono text-[12px] font-bold hover:border-[var(--accent2)] hover:text-[var(--text)] transition-all">
               ⬆ Importa tipi (JSON)
             </button>
             <input type="file" id="importFile" className="hidden" accept=".json" onChange={importTypes} />
@@ -606,29 +602,29 @@ export default function App() {
 
           <div className="grid grid-cols-3 gap-4 mb-[18px]">
             <div>
-              <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Giorno</label>
-              <input type="number" value={day} onChange={e => setDay(parseInt(e.target.value))} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Giorno</label>
+              <input type="number" value={day} onChange={e => setDay(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
             </div>
             <div>
-              <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Mese</label>
-              <input type="number" value={month} onChange={e => setMonth(parseInt(e.target.value))} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Mese</label>
+              <input type="number" value={month} onChange={e => setMonth(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
             </div>
             <div>
-              <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Anno</label>
-              <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Anno</label>
+              <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
             </div>
           </div>
 
           <div className="mb-[18px]">
-            <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">URL file media (link diretto)</label>
-            <input type="url" value={mediaUrl} onChange={e => onUrlChange(e.target.value)} placeholder="https://..." className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">URL file media (link diretto)</label>
+            <input type="url" value={mediaUrl} onChange={e => onUrlChange(e.target.value)} placeholder="https://..." className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
           </div>
 
           <div className="mb-[18px]">
-            <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">GUID — codice univoco episodio</label>
+            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">GUID — codice univoco episodio</label>
             <div className="flex gap-2 items-center">
-              <input type="text" value={itemGuid} onChange={e => setItemGuid(e.target.value)} className="flex-1 bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
-              <button onClick={() => setItemGuid(extractGuid(mediaUrl))} className="bg-[#1a1a26] border border-[#2a2a3e] text-[#7070a0] p-2.5 rounded-lg text-sm hover:border-[#7c4dff] hover:text-[#e8e8f0] transition-all">
+              <input type="text" value={itemGuid} onChange={e => setItemGuid(e.target.value)} className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+              <button onClick={() => setItemGuid(extractGuid(mediaUrl))} className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] p-2.5 rounded-lg text-sm font-bold hover:border-[var(--accent2)] hover:text-[var(--text)] transition-all">
                 ↻ da URL
               </button>
             </div>
@@ -636,16 +632,16 @@ export default function App() {
 
           <div className="grid grid-cols-2 gap-4">
             <div>
-              <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Tipo MIME</label>
-              <select value={mimeType} onChange={e => setMimeType(e.target.value)} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]">
+              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Tipo MIME</label>
+              <select value={mimeType} onChange={e => setMimeType(e.target.value)} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]">
                 <option value="audio/mpeg">🎵 Audio MP3 (audio/mpeg)</option>
                 <option value="video/mp4">🎬 Video MP4 (video/mp4)</option>
                 <option value="text/plain">📄 Testo (text/plain)</option>
               </select>
             </div>
             <div>
-              <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Dimensione (length)</label>
-              <input type="number" value={fileLength} onChange={e => setFileLength(e.target.value)} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Dimensione (length)</label>
+              <input type="number" value={fileLength} onChange={e => setFileLength(e.target.value)} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
             </div>
           </div>
         </section>
@@ -657,13 +653,13 @@ export default function App() {
           </div>
 
           <div className="mb-[18px]">
-            <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Titolo item</label>
-            <input type="text" value={itemTitle} onChange={e => setItemTitle(e.target.value)} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Titolo item</label>
+            <input type="text" value={itemTitle} onChange={e => setItemTitle(e.target.value)} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
           </div>
 
           <div className="mb-[18px]">
-            <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Descrizione item</label>
-            <input type="text" value={itemDesc} onChange={e => setItemDesc(e.target.value)} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Descrizione item</label>
+            <input type="text" value={itemDesc} onChange={e => setItemDesc(e.target.value)} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
           </div>
 
           <button onClick={autoFillFromType} className="btn-secondary">
@@ -671,7 +667,7 @@ export default function App() {
           </button>
 
           <div className="mt-[18px]">
-            <div className="font-mono text-[10px] tracking-[2px] uppercase text-[#ff3c3c] mb-3 pb-1.5 border-b border-[#ff3c3c33]">Preview item XML</div>
+            <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--accent)] mb-3 pb-1.5 border-b border-[rgba(255,77,77,0.3)]">Preview item XML</div>
             <div className="xml-block">
               {buildXmlItem() || "← Compila i campi per visualizzare l'anteprima XML"}
             </div>
@@ -718,30 +714,30 @@ export default function App() {
               <div className="font-mono text-xs text-[#7070a0] mb-6">Imposta le credenziali GitHub per pubblicare il feed RSS</div>
 
               <div className="mb-[18px]">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">GitHub Personal Access Token</label>
-                <input type="password" value={ghConfig.token} onChange={e => setGhConfig({...ghConfig, token: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
-                <div className="font-mono text-[11px] text-[#7070a0] mt-1.5 leading-relaxed">→ github.com/settings/tokens → New token → scope: <b>repo</b></div>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">GitHub Personal Access Token</label>
+                <input type="password" value={ghConfig.token} onChange={e => setGhConfig({...ghConfig, token: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+                <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ github.com/settings/tokens → New token → scope: <b>repo</b></div>
               </div>
 
               <div className="grid grid-cols-2 gap-4 mb-[18px]">
                 <div>
-                  <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Owner</label>
-                  <input type="text" value={ghConfig.owner} onChange={e => setGhConfig({...ghConfig, owner: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+                  <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Owner</label>
+                  <input type="text" value={ghConfig.owner} onChange={e => setGhConfig({...ghConfig, owner: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
                 </div>
                 <div>
-                  <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Repository</label>
-                  <input type="text" value={ghConfig.repo} onChange={e => setGhConfig({...ghConfig, repo: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+                  <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Repository</label>
+                  <input type="text" value={ghConfig.repo} onChange={e => setGhConfig({...ghConfig, repo: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
                 </div>
               </div>
 
               <div className="mb-[18px]">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Percorso file XML</label>
-                <input type="text" value={ghConfig.path} onChange={e => setGhConfig({...ghConfig, path: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Percorso file XML</label>
+                <input type="text" value={ghConfig.path} onChange={e => setGhConfig({...ghConfig, path: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
               </div>
 
               <div className="mb-6">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Branch</label>
-                <input type="text" value={ghConfig.branch} onChange={e => setGhConfig({...ghConfig, branch: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#7c4dff]" />
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Branch</label>
+                <input type="text" value={ghConfig.branch} onChange={e => setGhConfig({...ghConfig, branch: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
               </div>
 
               <button 
@@ -775,14 +771,14 @@ export default function App() {
               <div className="font-mono text-xs text-[#7070a0] mb-6">Imposta le credenziali Dropbox per pubblicare il feed RSS</div>
 
               <div className="mb-[18px]">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Dropbox Access Token</label>
-                <input type="password" value={dbxConfig.token} onChange={e => setDbxConfig({...dbxConfig, token: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#0061ff]" />
-                <div className="font-mono text-[11px] text-[#7070a0] mt-1.5 leading-relaxed">→ dropbox.com/developers/apps → Generate Token</div>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Dropbox Access Token</label>
+                <input type="password" value={dbxConfig.token} onChange={e => setDbxConfig({...dbxConfig, token: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+                <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ dropbox.com/developers/apps → Generate Token</div>
               </div>
 
               <div className="mb-6">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Percorso file XML (es: /rss.xml)</label>
-                <input type="text" value={dbxConfig.path} onChange={e => setDbxConfig({...dbxConfig, path: e.target.value})} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#0061ff]" />
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Percorso file XML (es: /rss.xml)</label>
+                <input type="text" value={dbxConfig.path} onChange={e => setDbxConfig({...dbxConfig, path: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
               </div>
 
               <button 
@@ -817,18 +813,18 @@ export default function App() {
 
               <div className="grid grid-cols-2 gap-4 mb-[18px]">
                 <div>
-                  <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Nome tipo</label>
-                  <input ref={tNomeRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.label || ''} type="text" className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#ffd740]" />
+                  <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Nome tipo</label>
+                  <input ref={tNomeRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.label || ''} type="text" className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--gold)]" />
                 </div>
                 <div>
-                  <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Icona (emoji)</label>
-                  <input ref={tIconRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.icon || ''} type="text" className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#ffd740]" />
+                  <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Icona (emoji)</label>
+                  <input ref={tIconRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.icon || ''} type="text" className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--gold)]" />
                 </div>
               </div>
 
               <div className="mb-[18px]">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">MIME type</label>
-                <select ref={tMimeRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.mime || 'audio/mpeg'} className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#ffd740]">
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">MIME type</label>
+                <select ref={tMimeRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.mime || 'audio/mpeg'} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--gold)]">
                   <option value="audio/mpeg">🎵 Audio MP3</option>
                   <option value="video/mp4">🎬 Video MP4</option>
                   <option value="text/plain">📄 Testo</option>
@@ -836,23 +832,23 @@ export default function App() {
               </div>
 
               <div className="mb-[18px]">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Maschera Titolo</label>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Maschera Titolo</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {TOKENS.map(tok => (
-                    <button key={tok} onClick={() => { if(tMaskTitleRef.current) tMaskTitleRef.current.value += tok; }} className="font-mono text-[10px] px-2 py-1 bg-[#1a1a26] border border-[#2a2a3e] rounded text-[#ffd740] hover:border-[#ffd740]">{tok}</button>
+                    <button key={tok} onClick={() => { if(tMaskTitleRef.current) tMaskTitleRef.current.value += tok; }} className="font-mono text-[10px] px-2 py-1 bg-[var(--surface2)] border border-[var(--border)] rounded text-[var(--gold)] hover:border-[var(--gold)]">{tok}</button>
                   ))}
                 </div>
-                <input ref={tMaskTitleRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.maskTitle || ''} type="text" className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#ffd740]" />
+                <input ref={tMaskTitleRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.maskTitle || ''} type="text" className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--gold)]" />
               </div>
 
               <div className="mb-6">
-                <label className="block font-mono text-[11px] tracking-[1px] uppercase text-[#7070a0] mb-1.5">Maschera Descrizione</label>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Maschera Descrizione</label>
                 <div className="flex flex-wrap gap-1.5 mb-2">
                   {TOKENS.map(tok => (
-                    <button key={tok} onClick={() => { if(tMaskDescRef.current) tMaskDescRef.current.value += tok; }} className="font-mono text-[10px] px-2 py-1 bg-[#1a1a26] border border-[#2a2a3e] rounded text-[#ffd740] hover:border-[#ffd740]">{tok}</button>
+                    <button key={tok} onClick={() => { if(tMaskDescRef.current) tMaskDescRef.current.value += tok; }} className="font-mono text-[10px] px-2 py-1 bg-[var(--surface2)] border border-[var(--border)] rounded text-[var(--gold)] hover:border-[var(--gold)]">{tok}</button>
                   ))}
                 </div>
-                <input ref={tMaskDescRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.maskDesc || ''} type="text" className="w-full bg-[#1a1a26] border border-[#2a2a3e] text-[#e8e8f0] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[#ffd740]" />
+                <input ref={tMaskDescRef} defaultValue={customTypes.find(t => t.id === editingTypeId)?.maskDesc || ''} type="text" className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--gold)]" />
               </div>
 
               <button 
