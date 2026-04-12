@@ -35,7 +35,7 @@ const FIXED_TYPES = [
     mime:'audio/mpeg' },
   { id:'zootv', label:'ZooTv\nVideo', icon:'📺',
     maskTitle:'ZooTv-#DD#-#MM#-#YYYY#-#DAY#-S@m',
-    maskDesc:'ZooTv-#DAY#,#DD#-#MM#-#YYYY#-S@m',
+    maskDesc:'ZooTv-Live-#DAY#,#DD#-#MM#-#YYYY#-S@m',
     mime:'video/mp4' },
   { id:'compilation', label:'Zoo\nCompilation', icon:'🎵',
     maskTitle:'Zoo-#DD#-#MM#-#YYYY#-Compilation-S@m',
