@@ -35,7 +35,7 @@ const FIXED_TYPES = [
     mime:'audio/mpeg' },
   { id:'zootv', label:'ZooTv\nVideo', icon:'📺',
     maskTitle:'ZooTv-#DD#-#MM#-#YYYY#-#DAY#-S@m',
-    maskDesc:'ZooTv-Live-#DAY#,#DD#-#MM#-#YYYY#-S@m',
+    maskDesc:'ZooTv-#DAY#,#DD#-#MM#-#YYYY#-S@m',
     mime:'video/mp4' },
   { id:'compilation', label:'Zoo\nCompilation', icon:'🎵',
     maskTitle:'Zoo-#DD#-#MM#-#YYYY#-Compilation-S@m',
@@ -95,14 +95,16 @@ export default function App() {
   const [year, setYear] = useState(new Date().getFullYear());
   const [mediaUrl, setMediaUrl] = useState('');
   const [itemGuid, setItemGuid] = useState('');
+  const [isPermaLink, setIsPermaLink] = useState(false);
   const [mimeType, setMimeType] = useState('audio/mpeg');
-  const [fileLength, setFileLength] = useState('100123123');
+  const [fileLength, setFileLength] = useState('');
   const [itemTitle, setItemTitle] = useState('');
   const [itemDesc, setItemDesc] = useState('');
   
   const [isConfigOpen, setIsConfigOpen] = useState(false);
   const [isDbxConfigOpen, setIsDbxConfigOpen] = useState(false);
   const [isTypeModalOpen, setIsTypeModalOpen] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
   const [editingTypeId, setEditingTypeId] = useState<string | null>(null);
   
   const [loading, setLoading] = useState(false);
@@ -201,7 +203,7 @@ export default function App() {
     if (!itemTitle || !mediaUrl) return null;
     const guid = itemGuid || extractGuid(mediaUrl);
     const date = getPubDate();
-    return `<item>\n<title>${esc(itemTitle)}</title>\n<link>${esc(mediaUrl)}</link>\n<description>${esc(itemDesc)}</description>\n<pubDate>${date}</pubDate>\n<guid isPermaLink="false">${guid}</guid>\n<enclosure length="${fileLength}" type="${mimeType}" url="${esc(mediaUrl)}"/>\n</item>`;
+    return `<item>\n<title>${esc(itemTitle)}</title>\n<link>${esc(mediaUrl)}</link>\n<description>${esc(itemDesc)}</description>\n<pubDate>${date}</pubDate>\n<guid isPermaLink="${isPermaLink}">${guid}</guid>\n<enclosure length="${fileLength}" type="${mimeType}" url="${esc(mediaUrl)}"/>\n</item>`;
   };
 
   const updateXmlLogic = (currentXml: string, newItem: string) => {
@@ -349,8 +351,6 @@ export default function App() {
       }
 
       showToast(`✓ "${itemTitle}" pubblicato su GitHub!`, 'success');
-      setMediaUrl('');
-      setItemGuid('');
       setDatesUpdated(false);
     } catch (err: any) {
       showToast('Errore: ' + err.message, 'error');
@@ -404,8 +404,6 @@ export default function App() {
       }
 
       showToast(`✓ "${itemTitle}" pubblicato su Dropbox! (Backup creato in /xml rss/)`, 'success');
-      setMediaUrl('');
-      setItemGuid('');
       setDatesUpdated(false);
     } catch (err: any) {
       showToast(err.message, 'error');
@@ -413,6 +411,27 @@ export default function App() {
       setLoading(false);
       setStatus('');
     }
+  };
+
+  const setToday = () => {
+    const now = new Date();
+    setDay(now.getDate());
+    setMonth(now.getMonth() + 1);
+    setYear(now.getFullYear());
+    showToast('Data impostata a oggi ✓', 'info');
+  };
+
+  const resetFields = () => {
+    // Usiamo uno stato o un toast per la conferma se vogliamo evitare window.confirm
+    // Ma per ora implementiamo la logica di reset
+    setMediaUrl('');
+    setItemGuid('');
+    setItemTitle('');
+    setItemDesc('');
+    setIsPermaLink(false);
+    setSelectedTypeId(null);
+    setDatesUpdated(false);
+    showToast('Campi svuotati ✓', 'info');
   };
 
   const saveCustomType = () => {
@@ -483,24 +502,25 @@ export default function App() {
   // --- Render ---
 
   return (
-    <div className="min-h-screen bg-[#0a0a0f] text-[#e8e8f0] font-sans selection:bg-[#ff3c3c] selection:text-white">
+    <div className="min-h-screen bg-[#050508] text-[#ffffff] font-sans selection:bg-[#ff3c3c] selection:text-white">
       {/* Header */}
-      <header className="bg-[#12121a] border-b border-[#2a2a3e] px-6 h-[60px] flex items-center justify-between sticky top-0 z-50">
-        <div className="font-sans font-bold text-3xl tracking-widest text-[var(--accent)]">
-          Rec-Zoo<span className="text-[var(--text)]">1o5</span> RSS
+      <header className="bg-[#12121a] border-b border-[#2a2a3e] px-4 md:px-6 py-3 md:h-[60px] flex flex-col md:flex-row items-center justify-between sticky top-0 z-50 gap-3 md:gap-0">
+        <div className="font-sans font-bold text-2xl md:text-3xl tracking-widest flex items-center gap-2">
+          <span className="chromatic-text">Rec-Zoo</span>
+          <span className="text-[#fd0]">1o5™</span>
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
             <button 
               onClick={() => setIsConfigOpen(true)}
-              className="btn-hdr flex items-center gap-2"
+              className="btn-hdr flex items-center gap-2 text-[10px] md:text-xs"
             >
               <div className={cn("w-1.5 h-1.5 rounded-full", ghConfig.token ? "bg-[var(--green)] shadow-[0_0_4px_var(--green)]" : "bg-[var(--muted)]")} />
               <Github size={14} /> GitHub
             </button>
             <button 
               onClick={() => setIsDbxConfigOpen(true)}
-              className="btn-hdr flex items-center gap-2 hover:border-[var(--accent2)]"
+              className="btn-hdr flex items-center gap-2 hover:border-[var(--accent2)] text-[10px] md:text-xs"
             >
               <div className={cn("w-1.5 h-1.5 rounded-full", dbxConfig.token ? "bg-[var(--green)] shadow-[0_0_4px_var(--green)]" : "bg-[var(--muted)]")} />
               <Database size={14} /> Dropbox
@@ -509,7 +529,7 @@ export default function App() {
         </div>
       </header>
 
-      <main className="max-w-[860px] mx-auto py-8 px-6">
+      <main className="max-w-[860px] mx-auto py-4 md:py-8 px-4 md:px-6">
         {/* Step 1: Tipo Episodio */}
         <section className="panel">
           <div className="panel-title">
@@ -517,7 +537,7 @@ export default function App() {
           </div>
 
           <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mb-2.5">Tipi fissi</div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
             {FIXED_TYPES.map(t => (
               <button
                 key={t.id}
@@ -534,7 +554,7 @@ export default function App() {
           </div>
 
           <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mt-[18px] mb-2.5">Tipi personalizzati</div>
-          <div className="grid grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
+          <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
             {customTypes.map(t => (
               <div key={t.id} className="relative group">
                 <button
@@ -600,18 +620,28 @@ export default function App() {
             02 — Data & URL media
           </div>
 
-          <div className="grid grid-cols-3 gap-4 mb-[18px]">
-            <div>
-              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Giorno</label>
-              <input type="number" value={day} onChange={e => setDay(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+          <div className="flex flex-col md:flex-row gap-4 mb-[18px]">
+            <div className="flex-shrink-0 flex items-end">
+              <button 
+                onClick={setToday}
+                className="h-[46px] px-4 bg-[var(--surface2)] border border-[var(--border)] text-[var(--gold)] rounded-lg font-mono text-sm font-bold hover:border-[var(--gold)] transition-all flex items-center gap-2"
+              >
+                <Calendar size={16} /> OGGI
+              </button>
             </div>
-            <div>
-              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Mese</label>
-              <input type="number" value={month} onChange={e => setMonth(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
-            </div>
-            <div>
-              <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Anno</label>
-              <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+            <div className="grid grid-cols-3 gap-4 flex-1">
+              <div>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Giorno</label>
+                <input type="number" value={day} onChange={e => setDay(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+              </div>
+              <div>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Mese</label>
+                <input type="number" value={month} onChange={e => setMonth(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+              </div>
+              <div>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Anno</label>
+                <input type="number" value={year} onChange={e => setYear(parseInt(e.target.value))} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+              </div>
             </div>
           </div>
 
@@ -622,10 +652,22 @@ export default function App() {
 
           <div className="mb-[18px]">
             <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">GUID — codice univoco episodio</label>
-            <div className="flex gap-2 items-center">
-              <input type="text" value={itemGuid} onChange={e => setItemGuid(e.target.value)} className="flex-1 bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+            <div className="flex flex-wrap gap-2 items-center">
+              <input type="text" value={itemGuid} onChange={e => setItemGuid(e.target.value)} className="flex-1 min-w-[200px] bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
               <button onClick={() => setItemGuid(extractGuid(mediaUrl))} className="bg-[var(--surface2)] border border-[var(--border)] text-[var(--muted)] p-2.5 rounded-lg text-sm font-bold hover:border-[var(--accent2)] hover:text-[var(--text)] transition-all">
                 ↻ da URL
+              </button>
+              <button 
+                onClick={() => setIsPermaLink(!isPermaLink)}
+                className={cn(
+                  "p-2.5 rounded-lg text-[11px] font-bold transition-all border flex items-center gap-1.5",
+                  isPermaLink 
+                    ? "bg-[var(--accent2)] border-[var(--accent2)] text-white" 
+                    : "bg-[var(--surface2)] border-[var(--border)] text-[var(--muted)] hover:border-[var(--accent2)]"
+                )}
+              >
+                {isPermaLink ? <CheckCircle2 size={14} /> : <div className="w-3.5 h-3.5 rounded-full border border-current" />}
+                isPermaLink
               </button>
             </div>
           </div>
@@ -662,9 +704,31 @@ export default function App() {
             <input type="text" value={itemDesc} onChange={e => setItemDesc(e.target.value)} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
           </div>
 
-          <button onClick={autoFillFromType} className="btn-secondary">
-            ↻ Rigenera da template
-          </button>
+          <div className="flex flex-col gap-2">
+            {!showResetConfirm ? (
+              <button 
+                onClick={() => setShowResetConfirm(true)} 
+                className="btn-secondary border-dashed border-[#ff3c3c66] text-[#ff8080] hover:border-[#ff3c3c] hover:text-[#ff3c3c]"
+              >
+                🗑 Svuota tutti i campi
+              </button>
+            ) : (
+              <div className="flex gap-2 mt-2.5">
+                <button 
+                  onClick={() => { resetFields(); setShowResetConfirm(false); }} 
+                  className="flex-1 p-3 bg-[#ff3c3c] text-white rounded-[10px] font-mono text-[13px] font-bold"
+                >
+                  CONFERMA SVUOTA
+                </button>
+                <button 
+                  onClick={() => setShowResetConfirm(false)} 
+                  className="flex-1 p-3 bg-transparent text-[var(--muted)] border border-[var(--border)] rounded-[10px] font-mono text-[13px]"
+                >
+                  Annulla
+                </button>
+              </div>
+            )}
+          </div>
 
           <div className="mt-[18px]">
             <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--accent)] mb-3 pb-1.5 border-b border-[rgba(255,77,77,0.3)]">Preview item XML</div>
@@ -871,7 +935,7 @@ export default function App() {
           <motion.div 
             initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: 20 }}
             className={cn(
-              "fixed bottom-6 right-6 p-4 rounded-[10px] font-mono text-sm z-[999] border shadow-2xl max-w-[380px]",
+              "fixed bottom-6 left-6 right-6 md:left-auto md:right-6 p-4 rounded-[10px] font-mono text-sm z-[999] border shadow-2xl md:max-w-[380px]",
               toast.type === 'success' && "bg-[#0d3d24] border-[#00e676] text-[#00e676]",
               toast.type === 'error' && "bg-[#3d0d0d] border-[#ff3c3c] text-[#ff8080]",
               toast.type === 'info' && "bg-[#1a1a40] border-[#7c4dff] text-[#a080ff]"
@@ -884,8 +948,8 @@ export default function App() {
 
       {/* Global Loading Overlay */}
       {loading && (
-        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[300] flex items-center justify-center">
-          <div className="bg-[#12121a] p-10 border border-[#2a2a3e] rounded-2xl flex flex-col items-center gap-4 shadow-2xl">
+        <div className="fixed inset-0 bg-black/50 backdrop-blur-sm z-[300] flex items-center justify-center p-4">
+          <div className="bg-[#12121a] p-6 md:p-10 border border-[#2a2a3e] rounded-2xl flex flex-col items-center gap-4 shadow-2xl w-full max-w-[320px] md:max-w-none">
             <RefreshCw className="animate-spin text-[#ff3c3c]" size={40} />
             <p className="font-sans font-bold text-2xl tracking-[2px] text-[#e8e8f0]">{status || "Processing..."}</p>
           </div>
