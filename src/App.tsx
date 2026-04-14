@@ -35,7 +35,7 @@ const FIXED_TYPES = [
     mime:'audio/mpeg' },
   { id:'zootv', label:'ZooTv\nVideo', icon:'📺',
     maskTitle:'ZooTv-#DD#-#MM#-#YYYY#-#DAY#-S@m',
-    maskDesc:'ZooTv-Live-#DAY#,#DD#-#MM#-#YYYY#-S@m',
+    maskDesc:'ZooTv-#DAY#,#DD#-#MM#-#YYYY#-S@m',
     mime:'video/mp4' },
   { id:'compilation', label:'Zoo\nCompilation', icon:'🎵',
     maskTitle:'Zoo-#DD#-#MM#-#YYYY#-Compilation-S@m',
@@ -111,6 +111,7 @@ export default function App() {
   const [status, setStatus] = useState('');
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [datesUpdated, setDatesUpdated] = useState(false);
+  const [lockedPubDate, setLockedPubDate] = useState('');
 
   // --- Refs for Modals ---
   const tNomeRef = useRef<HTMLInputElement>(null);
@@ -185,9 +186,7 @@ export default function App() {
     if (extracted && extracted !== url) setItemGuid(extracted);
   };
 
-  const getPubDate = () => {
-    const now = new Date();
-    const dt = new Date(year, month - 1, day, now.getHours(), now.getMinutes(), now.getSeconds());
+  const formatRfc822 = (dt: Date) => {
     const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
     const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const pad = (n: number) => String(n).padStart(2, '0');
@@ -195,6 +194,11 @@ export default function App() {
     const sign = o >= 0 ? '+' : '-';
     const offset = sign + pad(Math.floor(Math.abs(o) / 60)) + pad(Math.abs(o) % 60);
     return `${days[dt.getDay()]}, ${pad(dt.getDate())} ${months[dt.getMonth()]} ${dt.getFullYear()} ${pad(dt.getHours())}:${pad(dt.getMinutes())}:${pad(dt.getSeconds())} ${offset}`;
+  };
+
+  const getPubDate = () => {
+    if (lockedPubDate) return lockedPubDate;
+    return "--- PREMI 'AGGIORNA DATA ITEM' ---";
   };
 
   const esc = (s: string) => s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -211,7 +215,7 @@ export default function App() {
     const markerIdx = currentXml.indexOf(MARKER);
     if (markerIdx === -1) throw new Error('Marker "' + MARKER + '" non trovato nel RSS');
 
-    const newDate = getPubDate();
+    const finalDate = getPubDate();
 
     // Update pubDate of fixed items (before marker)
     const beforeMarker = currentXml.slice(0, markerIdx);
@@ -222,7 +226,7 @@ export default function App() {
     for (let i = 1; i < parts.length; i++) {
       const ci = parts[i].indexOf('</pubDate>');
       if (ci !== -1) {
-        rebuiltBefore += '<pubDate>' + newDate + '</pubDate>' + parts[i].slice(ci + 10);
+        rebuiltBefore += '<pubDate>' + finalDate + '</pubDate>' + parts[i].slice(ci + 10);
       } else {
         rebuiltBefore += '<pubDate>' + parts[i];
       }
@@ -236,7 +240,7 @@ export default function App() {
     const lbdParts = updatedXml.split('<lastBuildDate>');
     if (lbdParts.length > 1) {
       const rest = lbdParts[1].split('</lastBuildDate>');
-      updatedXml = lbdParts[0] + '<lastBuildDate>' + newDate + '</lastBuildDate>' + rest.slice(1).join('</lastBuildDate>');
+      updatedXml = lbdParts[0] + '<lastBuildDate>' + finalDate + '</lastBuildDate>' + rest.slice(1).join('</lastBuildDate>');
     }
 
     return updatedXml;
@@ -429,6 +433,7 @@ export default function App() {
     setItemTitle('');
     setItemDesc('');
     setIsPermaLink(false);
+    setLockedPubDate('');
     setSelectedTypeId(null);
     setDatesUpdated(false);
     showToast('Campi svuotati ✓', 'info');
@@ -603,13 +608,17 @@ export default function App() {
           </div>
 
           <button 
-            onClick={() => setDatesUpdated(true)}
+            onClick={() => {
+              // Usiamo ESCLUSIVAMENTE la data e l'orario di ADESSO (attuale)
+              setLockedPubDate(formatRfc822(new Date()));
+              setDatesUpdated(true);
+            }}
             className={cn(
               "w-full mt-4 p-3.5 border-2 rounded-[10px] font-sans font-bold text-lg tracking-[2px] transition-all flex items-center justify-center gap-2.5",
               datesUpdated ? "bg-[#00e6761f] border-[#00e676] text-[#00e676] animate-[pulse-green_0.4s_ease]" : "bg-transparent border-[#ffd740] text-[#ffd740] hover:bg-[#ffd7401a]"
             )}
           >
-            <Calendar size={18} /> {datesUpdated ? "✓ DATE PRONTE — VERRANNO AGGIORNATE AL PUBLISH" : "📅 AGGIORNA DATA ITEM FISSI"}
+            <Calendar size={18} /> {datesUpdated ? "✓ DATA PRONTA — VERRANNO AGGIORNATE AL PUBLISH" : "📅 AGGIORNA DATA ITEM"}
           </button>
           {!datesUpdated && <div className="text-center font-mono text-[11px] text-[#ff3c3c] mt-2">⚠ Premi prima di pubblicare!</div>}
         </section>
@@ -646,8 +655,14 @@ export default function App() {
           </div>
 
           <div className="mb-[18px]">
-            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">URL file media (link diretto)</label>
-            <input type="url" value={mediaUrl} onChange={e => onUrlChange(e.target.value)} placeholder="https://..." className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+            <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[#ffd740] mb-1.5">URL file media (link diretto)</label>
+            <input 
+              type="url" 
+              value={mediaUrl} 
+              onChange={e => onUrlChange(e.target.value)} 
+              placeholder="https://..." 
+              className="w-full bg-[#1a1a2e] border-2 border-[#ffd740] text-[var(--text)] p-3 rounded-lg font-mono text-sm outline-none shadow-[0_0_15px_rgba(255,215,64,0.1)] focus:shadow-[0_0_20px_rgba(255,215,64,0.2)] transition-all" 
+            />
           </div>
 
           <div className="mb-[18px]">
