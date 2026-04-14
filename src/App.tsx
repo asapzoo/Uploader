@@ -957,6 +957,12 @@ export default function App() {
                 >
                   <Database size={16} /> COLLEGA ACCOUNT DROPBOX
                 </button>
+                <div className="mt-3 p-2 bg-black/20 rounded border border-white/5">
+                  <div className="text-[9px] uppercase font-bold text-[#7070a0] mb-1">Redirect URI da aggiungere su Dropbox:</div>
+                  <div className="text-[10px] font-mono text-[#0061ff] break-all select-all">
+                    {window.location.origin}/auth/dropbox/callback
+                  </div>
+                </div>
                 {dbxConfig.refreshToken && <div className="text-[10px] text-[#00e676] font-mono mt-2 text-center">✓ Refresh Token salvato (Connessione permanente)</div>}
               </div>
 
