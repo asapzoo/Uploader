@@ -9,9 +9,12 @@ export interface DropboxFile {
 export class DropboxService {
   private dbx: Dropbox;
 
-  constructor(accessToken: string) {
+  constructor(config: { accessToken?: string; refreshToken?: string; clientId?: string; clientSecret?: string }) {
     this.dbx = new Dropbox({ 
-      accessToken,
+      accessToken: config.accessToken,
+      refreshToken: config.refreshToken,
+      clientId: config.clientId,
+      clientSecret: config.clientSecret,
       fetch: window.fetch.bind(window)
     });
   }

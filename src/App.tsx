@@ -68,6 +68,9 @@ interface GitHubConfig {
 interface DropboxConfig {
   token: string;
   path: string;
+  appKey?: string;
+  appSecret?: string;
+  refreshToken?: string;
 }
 
 // --- App Component ---
@@ -81,7 +84,7 @@ export default function App() {
 
   const [dbxConfig, setDbxConfig] = useState<DropboxConfig>(() => {
     const saved = localStorage.getItem('zoo105_dbx_config');
-    return saved ? JSON.parse(saved) : { token: '', path: '/rss.xml' };
+    return saved ? JSON.parse(saved) : { token: '', path: '/rss.xml', appKey: '', appSecret: '', refreshToken: '' };
   });
 
   const [customTypes, setCustomTypes] = useState<CustomType[]>(() => {
@@ -131,6 +134,56 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Dropbox OAuth Listener
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'DROPBOX_AUTH_CODE') {
+        const { code } = event.data;
+        try {
+          setLoading(true);
+          setStatus('Scambio codice Dropbox...');
+          const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+          
+          const response = await fetch('/api/auth/dropbox/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code,
+              clientId: dbxConfig.appKey,
+              clientSecret: dbxConfig.appSecret,
+              redirectUri
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.details?.error_description || errData.error || 'Errore nello scambio token');
+          }
+
+          const data = await response.json();
+          // data contiene access_token e refresh_token
+          const newConfig = {
+            ...dbxConfig,
+            token: data.access_token,
+            refreshToken: data.refresh_token
+          };
+          setDbxConfig(newConfig);
+          localStorage.setItem('zoo105_dbx_config', JSON.stringify(newConfig));
+          showToast('Dropbox collegato con successo! ✓', 'success');
+        } catch (err: any) {
+          showToast('Errore collegamento: ' + err.message, 'error');
+        } finally {
+          setLoading(false);
+          setStatus('');
+        }
+      } else if (event.data?.type === 'DROPBOX_AUTH_ERROR') {
+        showToast('Errore Dropbox: ' + event.data.error, 'error');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [dbxConfig]);
 
   // --- Helpers ---
 
@@ -364,8 +417,22 @@ export default function App() {
     }
   };
 
+  const connectDropbox = () => {
+    if (!dbxConfig.appKey || !dbxConfig.appSecret) {
+      showToast('Inserisci App Key e App Secret prima di collegare', 'error');
+      return;
+    }
+    const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${dbxConfig.appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline`;
+    
+    window.open(authUrl, 'dropbox_auth', 'width=600,height=700');
+  };
+
   const publishToDropbox = async () => {
-    if (!dbxConfig.token) { showToast('Configura Dropbox prima', 'error'); return; }
+    if (!dbxConfig.token && !dbxConfig.refreshToken) { 
+      showToast('Configura Dropbox prima (Token o App Key/Secret)', 'error'); 
+      return; 
+    }
     const newItem = buildXmlItem();
     if (!newItem) { showToast('Compila Titolo e URL prima', 'error'); return; }
     if (!datesUpdated) { showToast('⚠ Prima aggiorna le date degli item fissi!', 'error'); return; }
@@ -373,7 +440,12 @@ export default function App() {
     setLoading(true);
     setStatus('1/3 — Lettura file XML da Dropbox...');
     try {
-      const dbx = new DropboxService(dbxConfig.token);
+      const dbx = new DropboxService({
+        accessToken: dbxConfig.token,
+        refreshToken: dbxConfig.refreshToken,
+        clientId: dbxConfig.appKey,
+        clientSecret: dbxConfig.appSecret
+      });
       let currentXml = '';
       
       try {
@@ -820,7 +892,20 @@ export default function App() {
               </div>
 
               <button 
-                onClick={() => { localStorage.setItem('zoo105_config', JSON.stringify(ghConfig)); setIsConfigOpen(false); showToast('Configurazione GitHub salvata ✓', 'success'); }}
+                onClick={() => { 
+                  const cleanedConfig = {
+                    ...ghConfig,
+                    token: ghConfig.token.trim(),
+                    owner: ghConfig.owner.trim(),
+                    repo: ghConfig.repo.trim(),
+                    path: ghConfig.path.trim(),
+                    branch: ghConfig.branch.trim()
+                  };
+                  setGhConfig(cleanedConfig);
+                  localStorage.setItem('zoo105_config', JSON.stringify(cleanedConfig)); 
+                  setIsConfigOpen(false); 
+                  showToast('Configurazione GitHub salvata ✓', 'success'); 
+                }}
                 className="w-full p-3.5 bg-[#7c4dff] text-white rounded-[10px] font-sans font-bold text-xl tracking-[2px] hover:bg-[#9b73ff] transition-all"
               >
                 SALVA CONFIGURAZIONE
@@ -849,10 +934,36 @@ export default function App() {
               <div className="font-sans font-bold text-3xl tracking-widest text-[#0061ff] mb-1">⚙ Dropbox Config</div>
               <div className="font-mono text-xs text-[#7070a0] mb-6">Imposta le credenziali Dropbox per pubblicare il feed RSS</div>
 
+              <div className="mb-[18px] p-4 bg-[#0061ff1a] border border-[#0061ff33] rounded-xl">
+                <div className="font-sans font-bold text-sm text-[#0061ff] mb-3 flex items-center gap-2">
+                  <RefreshCw size={16} /> Metodo Consigliato (Refresh Token)
+                </div>
+                <div className="grid grid-cols-2 gap-3 mb-3">
+                  <div>
+                    <label className="block font-mono text-[10px] font-bold uppercase text-[var(--muted)] mb-1">App Key</label>
+                    <input type="text" value={dbxConfig.appKey} onChange={e => setDbxConfig({...dbxConfig, appKey: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2 rounded-lg font-mono text-xs outline-none focus:border-[#0061ff]" />
+                  </div>
+                  <div>
+                    <label className="block font-mono text-[10px] font-bold uppercase text-[var(--muted)] mb-1">App Secret</label>
+                    <input type="password" value={dbxConfig.appSecret} onChange={e => setDbxConfig({...dbxConfig, appSecret: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2 rounded-lg font-mono text-xs outline-none focus:border-[#0061ff]" />
+                  </div>
+                </div>
+                <button 
+                  onClick={connectDropbox}
+                  className="w-full p-2 bg-[#0061ff] text-white rounded-lg font-sans font-bold text-sm hover:bg-[#3381ff] transition-all flex items-center justify-center gap-2"
+                >
+                  <Database size={16} /> COLLEGA ACCOUNT DROPBOX
+                </button>
+                {dbxConfig.refreshToken && <div className="text-[10px] text-[#00e676] font-mono mt-2 text-center">✓ Refresh Token salvato (Connessione permanente)</div>}
+              </div>
+
               <div className="mb-[18px]">
-                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Dropbox Access Token</label>
+                <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5 flex items-center justify-between">
+                  <span>Dropbox Access Token (Manuale)</span>
+                  <span className="text-[10px] normal-case font-normal text-[#ff3c3c]">Scade ogni 4 ore</span>
+                </label>
                 <input type="password" value={dbxConfig.token} onChange={e => setDbxConfig({...dbxConfig, token: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
-                <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ dropbox.com/developers/apps → Generate Token</div>
+                <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ Usa questo solo se non vuoi usare App Key/Secret</div>
               </div>
 
               <div className="mb-6">
@@ -861,7 +972,17 @@ export default function App() {
               </div>
 
               <button 
-                onClick={() => { localStorage.setItem('zoo105_dbx_config', JSON.stringify(dbxConfig)); setIsDbxConfigOpen(false); showToast('Configurazione Dropbox salvata ✓', 'success'); }}
+                onClick={() => { 
+                  const cleanedConfig = {
+                    ...dbxConfig,
+                    token: dbxConfig.token.trim(),
+                    path: dbxConfig.path.trim()
+                  };
+                  setDbxConfig(cleanedConfig);
+                  localStorage.setItem('zoo105_dbx_config', JSON.stringify(cleanedConfig)); 
+                  setIsDbxConfigOpen(false); 
+                  showToast('Configurazione Dropbox salvata ✓', 'success'); 
+                }}
                 className="w-full p-3.5 bg-[#0061ff] text-white rounded-[10px] font-sans font-bold text-xl tracking-[2px] hover:bg-[#3381ff] transition-all"
               >
                 SALVA CONFIGURAZIONE
