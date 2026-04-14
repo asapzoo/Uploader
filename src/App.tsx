@@ -150,8 +150,8 @@ export default function App() {
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
               code,
-              clientId: dbxConfig.appKey,
-              clientSecret: dbxConfig.appSecret,
+              clientId: dbxConfig.appKey?.trim(),
+              clientSecret: dbxConfig.appSecret?.trim(),
               redirectUri
             })
           });
@@ -418,12 +418,15 @@ export default function App() {
   };
 
   const connectDropbox = () => {
-    if (!dbxConfig.appKey || !dbxConfig.appSecret) {
+    const appKey = dbxConfig.appKey?.trim();
+    const appSecret = dbxConfig.appSecret?.trim();
+
+    if (!appKey || !appSecret) {
       showToast('Inserisci App Key e App Secret prima di collegare', 'error');
       return;
     }
     const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${dbxConfig.appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline`;
     
     window.open(authUrl, 'dropbox_auth', 'width=600,height=700');
   };
@@ -976,7 +979,9 @@ export default function App() {
                   const cleanedConfig = {
                     ...dbxConfig,
                     token: dbxConfig.token.trim(),
-                    path: dbxConfig.path.trim()
+                    path: dbxConfig.path.trim(),
+                    appKey: (dbxConfig.appKey || '').trim(),
+                    appSecret: (dbxConfig.appSecret || '').trim()
                   };
                   setDbxConfig(cleanedConfig);
                   localStorage.setItem('zoo105_dbx_config', JSON.stringify(cleanedConfig)); 

@@ -30,12 +30,22 @@ async function startServer() {
       params.append("redirect_uri", redirectUri);
 
       const response = await axios.post("https://api.dropbox.com/oauth2/token", params);
-      
-      // Dropbox returns { access_token, refresh_token, ... }
       res.json(response.data);
     } catch (error: any) {
-      console.error("Dropbox token exchange error:", error.response?.data || error.message);
-      res.status(500).json({ error: "Failed to exchange token", details: error.response?.data });
+      const errorData = error.response?.data;
+      console.error("Dropbox token exchange error:", errorData || error.message);
+      
+      let errorMessage = "Failed to exchange token";
+      if (errorData?.error_description) {
+        errorMessage = errorData.error_description;
+      } else if (errorData?.error) {
+        errorMessage = `Dropbox error: ${errorData.error}`;
+      }
+
+      res.status(500).json({ 
+        error: errorMessage, 
+        details: errorData 
+      });
     }
   });
 
