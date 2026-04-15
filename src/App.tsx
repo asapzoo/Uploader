@@ -21,7 +21,8 @@ import {
   FileCode,
   X,
   Download,
-  Upload
+  Upload,
+  Share2
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -579,6 +580,76 @@ export default function App() {
     e.target.value = '';
   };
 
+  const exportFullConfig = () => {
+    const fullConfig = {
+      github: ghConfig,
+      dropbox: dbxConfig,
+      exportDate: new Date().toISOString(),
+      version: '1.0'
+    };
+    const blob = new Blob([JSON.stringify(fullConfig, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `zoo105_full_config_${new Date().toISOString().slice(0,10)}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    showToast('Configurazione completa esportata ✓', 'success');
+  };
+
+  const importFullConfig = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const imported = JSON.parse(event.target?.result as string);
+        if (imported.github) {
+          setGhConfig(imported.github);
+          localStorage.setItem('zoo105_config', JSON.stringify(imported.github));
+        }
+        if (imported.dropbox) {
+          setDbxConfig(imported.dropbox);
+          localStorage.setItem('zoo105_dbx_config', JSON.stringify(imported.dropbox));
+        }
+        showToast('Configurazione importata con successo ✓', 'success');
+      } catch (err: any) {
+        showToast('Errore importazione: ' + err.message, 'error');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const copyConfigToClipboard = () => {
+    const fullConfig = {
+      github: ghConfig,
+      dropbox: dbxConfig
+    };
+    // Codifica in Base64 per la "stringa criptata" (offuscata)
+    const encoded = btoa(JSON.stringify(fullConfig));
+    navigator.clipboard.writeText(encoded);
+    showToast('Configurazione copiata (stringa offuscata) ✓', 'success');
+  };
+
+  const importConfigFromClipboard = async () => {
+    try {
+      const text = await navigator.clipboard.readText();
+      const decoded = JSON.parse(atob(text));
+      if (decoded.github) {
+        setGhConfig(decoded.github);
+        localStorage.setItem('zoo105_config', JSON.stringify(decoded.github));
+      }
+      if (decoded.dropbox) {
+        setDbxConfig(decoded.dropbox);
+        localStorage.setItem('zoo105_dbx_config', JSON.stringify(decoded.dropbox));
+      }
+      showToast('Configurazione importata dagli appunti ✓', 'success');
+    } catch (err: any) {
+      showToast('Stringa non valida negli appunti', 'error');
+    }
+  };
+
   // --- Render ---
 
   return (
@@ -591,6 +662,18 @@ export default function App() {
         </div>
         <div className="flex items-center gap-4">
           <div className="flex gap-2">
+            <button 
+              onClick={exportFullConfig}
+              title="Esporta Configurazione Completa"
+              className="btn-hdr flex items-center gap-2 text-[10px] md:text-xs border-dashed border-[#444]"
+            >
+              <Download size={14} /> Backup
+            </button>
+            <label className="btn-hdr flex items-center gap-2 text-[10px] md:text-xs border-dashed border-[#444] cursor-pointer">
+              <Upload size={14} /> Ripristina
+              <input type="file" accept=".json" onChange={importFullConfig} className="hidden" />
+            </label>
+            <div className="w-px h-4 bg-[#2a2a3e] mx-1 self-center" />
             <button 
               onClick={() => setIsConfigOpen(true)}
               className="btn-hdr flex items-center gap-2 text-[10px] md:text-xs"
@@ -892,6 +975,27 @@ export default function App() {
               <div className="mb-6">
                 <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5">Branch</label>
                 <input type="text" value={ghConfig.branch} onChange={e => setGhConfig({...ghConfig, branch: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
+              </div>
+
+              <div className="mb-6 p-4 bg-[#7c4dff1a] border border-[#7c4dff33] rounded-xl">
+                <div className="font-sans font-bold text-sm text-[#7c4dff] mb-2 flex items-center gap-2">
+                  <Share2 size={16} /> Condivisione Rapida
+                </div>
+                <div className="flex gap-2">
+                  <button 
+                    onClick={copyConfigToClipboard}
+                    className="flex-1 p-2 bg-[#7c4dff33] text-[#7c4dff] border border-[#7c4dff33] rounded-lg font-mono text-[10px] hover:bg-[#7c4dff4d] transition-all"
+                  >
+                    COPIA STRINGA
+                  </button>
+                  <button 
+                    onClick={importConfigFromClipboard}
+                    className="flex-1 p-2 bg-[#7c4dff33] text-[#7c4dff] border border-[#7c4dff33] rounded-lg font-mono text-[10px] hover:bg-[#7c4dff4d] transition-all"
+                  >
+                    INCOLLA STRINGA
+                  </button>
+                </div>
+                <div className="text-[9px] text-[var(--muted)] mt-2 italic">Copia/Incolla una stringa offuscata per trasferire la config velocemente.</div>
               </div>
 
               <button 
