@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef, ChangeEvent } from 'react';
 import { DropboxService } from './lib/dropbox';
+import { preparePKCE, getStoredVerifier, clearStoredVerifier } from './lib/pkce';
 import { 
   Settings, 
   Plus, 
@@ -146,23 +147,65 @@ export default function App() {
           setStatus('Scambio codice Dropbox...');
           const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
           
-          const response = await fetch('/api/auth/dropbox/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              code,
-              clientId: dbxConfig.appKey?.trim(),
-              clientSecret: dbxConfig.appSecret?.trim(),
-              redirectUri
-            })
-          });
+          let data;
+          let serverError = null;
 
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.details?.error_description || errData.error || 'Errore nello scambio token');
+          // Proviamo prima lo scambio tramite il server (Cloud Run) se non siamo su GitHub Pages
+          const isStaticHost = window.location.hostname.includes('github.io') || window.location.hostname.includes('localhost') === false && !window.location.hostname.includes('run.app');
+          
+          if (!isStaticHost) {
+            try {
+              const response = await fetch('/api/auth/dropbox/token', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                  code,
+                  clientId: dbxConfig.appKey?.trim(),
+                  clientSecret: dbxConfig.appSecret?.trim(),
+                  redirectUri
+                })
+              });
+
+              if (response.ok) {
+                data = await response.json();
+              } else {
+                const errData = await response.json();
+                serverError = errData.details?.error_description || errData.error || 'Errore server';
+                console.warn('Backend exchange failed, falling back to client-side:', serverError);
+              }
+            } catch (err) {
+              console.warn('Backend endpoint not reachable, falling back to client-side:', err);
+            }
           }
 
-          const data = await response.json();
+          // Se il server non è disponibile o siamo su host statico, proviamo lo scambio lato client (PKCE)
+          if (!data) {
+            const verifier = getStoredVerifier();
+            const params = new URLSearchParams();
+            params.append('code', code);
+            params.append('grant_type', 'authorization_code');
+            params.append('client_id', dbxConfig.appKey?.trim() || '');
+            params.append('redirect_uri', redirectUri);
+            
+            if (verifier) {
+              params.append('code_verifier', verifier);
+            } else {
+              // Fallback senza PKCE se il verifier è stato perso (richiede client_secret)
+              params.append('client_secret', dbxConfig.appSecret?.trim() || '');
+            }
+
+            const response = await fetch('https://api.dropbox.com/oauth2/token', {
+              method: 'POST',
+              body: params
+            });
+
+            if (!response.ok) {
+              const errData = await response.json();
+              throw new Error(errData.error_description || errData.error || serverError || 'Errore nello scambio token');
+            }
+            data = await response.json();
+          }
+
           // data contiene access_token e refresh_token
           const newConfig = {
             ...dbxConfig,
@@ -172,6 +215,7 @@ export default function App() {
           setDbxConfig(newConfig);
           localStorage.setItem('zoo105_dbx_config', JSON.stringify(newConfig));
           showToast('Dropbox collegato con successo! ✓', 'success');
+          clearStoredVerifier();
         } catch (err: any) {
           showToast('Errore collegamento: ' + err.message, 'error');
         } finally {
@@ -418,7 +462,7 @@ export default function App() {
     }
   };
 
-  const connectDropbox = () => {
+  const connectDropbox = async () => {
     const appKey = dbxConfig.appKey?.trim();
     const appSecret = dbxConfig.appSecret?.trim();
 
@@ -427,7 +471,21 @@ export default function App() {
       return;
     }
     const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
-    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline`;
+    
+    // Su host statici o se non siamo su Cloud Run, usiamo PKCE
+    const isCloudRun = window.location.hostname.includes('run.app');
+    let pkceParams = '';
+    
+    if (!isCloudRun) {
+      try {
+        const challenge = await preparePKCE();
+        pkceParams = `&code_challenge=${challenge}&code_challenge_method=S256`;
+      } catch (err) {
+        console.error('PKCE preparation failed:', err);
+      }
+    }
+    
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline${pkceParams}`;
     
     window.open(authUrl, 'dropbox_auth', 'width=600,height=700');
   };
