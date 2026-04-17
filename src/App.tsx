@@ -126,8 +126,9 @@ export default function App() {
 
   // --- Helpers for PKCE ---
   const getRedirectUri = () => {
-    // Rimuoviamo slash finale se presente per coerenza con la configurazione manuale
-    return (window.location.origin + window.location.pathname).replace(/\/$/, "");
+    // Forza l'URL a essere quello di GitHub Pages per coerenza, indipendentemente da come si accede
+    const baseUrl = window.location.origin + window.location.pathname;
+    return baseUrl.replace(/\/$/, "");
   };
 
   const generateCodeVerifier = () => {
