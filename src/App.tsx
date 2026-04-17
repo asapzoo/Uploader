@@ -172,6 +172,12 @@ export default function App() {
           params.append('code', code);
           params.append('grant_type', 'authorization_code');
           params.append('client_id', dbxConfig.appKey?.trim() || '');
+          
+          const secret = dbxConfig.appSecret?.trim();
+          if (secret) {
+            params.append('client_secret', secret);
+          }
+          
           params.append('code_verifier', verifier);
           params.append('redirect_uri', getRedirectUri());
 
