@@ -94,9 +94,9 @@ export default function App() {
   });
 
   const [selectedTypeId, setSelectedTypeId] = useState<string | null>(null);
-  const [day, setDay] = useState(new Date().getDate());
-  const [month, setMonth] = useState(new Date().getMonth() + 1);
-  const [year, setYear] = useState(new Date().getFullYear());
+  const [day, setDay] = useState(() => new Date().getDate());
+  const [month, setMonth] = useState(() => new Date().getMonth() + 1);
+  const [year, setYear] = useState(() => new Date().getFullYear());
   const [mediaUrl, setMediaUrl] = useState('');
   const [itemGuid, setItemGuid] = useState('');
   const [isPermaLink, setIsPermaLink] = useState(false);
