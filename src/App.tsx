@@ -116,11 +116,6 @@ export default function App() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [datesUpdated, setDatesUpdated] = useState(false);
   const [lockedPubDate, setLockedPubDate] = useState('');
-  const [dbxTokenExpiry, setDbxTokenExpiry] = useState<number | null>(() => {
-    const saved = localStorage.getItem('zoo105_dbx_expiry');
-    return saved ? parseInt(saved, 10) : null;
-  });
-  const [timeLeft, setTimeLeft] = useState<string>('');
 
   // --- Refs for Modals ---
   const tNomeRef = useRef<HTMLInputElement>(null);
@@ -129,140 +124,7 @@ export default function App() {
   const tMaskTitleRef = useRef<HTMLInputElement>(null);
   const tMaskDescRef = useRef<HTMLInputElement>(null);
 
-  // --- Helpers for PKCE ---
-  const getRedirectUri = () => {
-    // Forza l'URL a essere quello di GitHub Pages per coerenza, indipendentemente da come si accede
-    const baseUrl = window.location.origin + window.location.pathname;
-    return baseUrl.replace(/\/$/, "");
-  };
-
-  const generateCodeVerifier = () => {
-    const array = new Uint8Array(32);
-    window.crypto.getRandomValues(array);
-    return btoa(String.fromCharCode(...array))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  };
-
-  const generateCodeChallenge = async (verifier: string) => {
-    const encoder = new TextEncoder();
-    const data = encoder.encode(verifier);
-    const digest = await window.crypto.subtle.digest('SHA-256', data);
-    return btoa(String.fromCharCode(...new Uint8Array(digest)))
-      .replace(/\+/g, '-')
-      .replace(/\//g, '_')
-      .replace(/=/g, '');
-  };
-
   // --- Effects ---
-  useEffect(() => {
-    if (dbxTokenExpiry) {
-      localStorage.setItem('zoo105_dbx_expiry', String(dbxTokenExpiry));
-    } else {
-      localStorage.removeItem('zoo105_dbx_expiry');
-    }
-  }, [dbxTokenExpiry]);
-
-  useEffect(() => {
-    const timer = setInterval(() => {
-      if (!dbxTokenExpiry || !dbxConfig.token) {
-        setTimeLeft('');
-        return;
-      }
-      const now = Date.now();
-      const diff = dbxTokenExpiry - now;
-      if (diff <= 0) {
-        setTimeLeft('SCADUTO');
-        return;
-      }
-      const h = Math.floor(diff / 3600000);
-      const m = Math.floor((diff % 3600000) / 60000);
-      const s = Math.floor((diff % 60000) / 1000);
-      setTimeLeft(`${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`);
-    }, 1000);
-    return () => clearInterval(timer);
-  }, [dbxTokenExpiry, dbxConfig.token]);
-
-  // Gestione Reset Timer quando cambia il token
-  const lastTokenRef = useRef(dbxConfig.token);
-  useEffect(() => {
-    if (dbxConfig.token && dbxConfig.token !== lastTokenRef.current) {
-      const fourHours = 4 * 60 * 60 * 1000;
-      setDbxTokenExpiry(Date.now() + fourHours);
-      lastTokenRef.current = dbxConfig.token;
-    } else if (!dbxConfig.token) {
-      setDbxTokenExpiry(null);
-      lastTokenRef.current = '';
-    }
-  }, [dbxConfig.token]);
-
-  useEffect(() => {
-    // Gestione Callback OAuth (Direttamente nel componente per GitHub Pages)
-    const handleUrlCallback = async () => {
-      const urlParams = new URLSearchParams(window.location.search);
-      const code = urlParams.get('code');
-      const error = urlParams.get('error');
-
-      if (code) {
-        // Rimuovi i parametri dall'URL per pulizia
-        window.history.replaceState({}, document.title, window.location.pathname);
-        
-        try {
-          setLoading(true);
-          setStatus('Scambio codice Dropbox (PKCE)...');
-          
-          const verifier = localStorage.getItem('dropbox_code_verifier');
-          if (!verifier) throw new Error('Code Verifier non trovato. Riprova la connessione.');
-
-          const params = new URLSearchParams();
-          params.append('code', code);
-          params.append('grant_type', 'authorization_code');
-          params.append('client_id', dbxConfig.appKey?.trim() || '');
-          
-          const secret = dbxConfig.appSecret?.trim();
-          if (secret) {
-            params.append('client_secret', secret);
-          }
-          
-          params.append('code_verifier', verifier);
-          params.append('redirect_uri', getRedirectUri());
-
-          const response = await fetch('https://api.dropbox.com/oauth2/token', {
-            method: 'POST',
-            body: params
-          });
-
-          if (!response.ok) {
-            const errData = await response.json();
-            throw new Error(errData.error_description || errData.error || 'Errore scambio token');
-          }
-
-          const data = await response.json();
-          const newConfig = {
-            ...dbxConfig,
-            token: data.access_token,
-            refreshToken: data.refresh_token
-          };
-          setDbxConfig(newConfig);
-          localStorage.setItem('zoo105_dbx_config', JSON.stringify(newConfig));
-          localStorage.removeItem('dropbox_code_verifier');
-          showToast('Dropbox collegato con successo! ✓', 'success');
-        } catch (err: any) {
-          showToast('Errore collegamento: ' + err.message, 'error');
-        } finally {
-          setLoading(false);
-          setStatus('');
-        }
-      } else if (error) {
-        window.history.replaceState({}, document.title, window.location.pathname);
-        showToast('Errore Dropbox: ' + error, 'error');
-      }
-    };
-
-    handleUrlCallback();
-  }, [dbxConfig.appKey]);
-
   useEffect(() => {
     localStorage.setItem('zoo105_custom_types', JSON.stringify(customTypes));
   }, [customTypes]);
@@ -273,6 +135,56 @@ export default function App() {
       return () => clearTimeout(timer);
     }
   }, [toast]);
+
+  // Dropbox OAuth Listener
+  useEffect(() => {
+    const handleMessage = async (event: MessageEvent) => {
+      if (event.data?.type === 'DROPBOX_AUTH_CODE') {
+        const { code } = event.data;
+        try {
+          setLoading(true);
+          setStatus('Scambio codice Dropbox...');
+          const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+          
+          const response = await fetch('/api/auth/dropbox/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              code,
+              clientId: dbxConfig.appKey?.trim(),
+              clientSecret: dbxConfig.appSecret?.trim(),
+              redirectUri
+            })
+          });
+
+          if (!response.ok) {
+            const errData = await response.json();
+            throw new Error(errData.details?.error_description || errData.error || 'Errore nello scambio token');
+          }
+
+          const data = await response.json();
+          // data contiene access_token e refresh_token
+          const newConfig = {
+            ...dbxConfig,
+            token: data.access_token,
+            refreshToken: data.refresh_token
+          };
+          setDbxConfig(newConfig);
+          localStorage.setItem('zoo105_dbx_config', JSON.stringify(newConfig));
+          showToast('Dropbox collegato con successo! ✓', 'success');
+        } catch (err: any) {
+          showToast('Errore collegamento: ' + err.message, 'error');
+        } finally {
+          setLoading(false);
+          setStatus('');
+        }
+      } else if (event.data?.type === 'DROPBOX_AUTH_ERROR') {
+        showToast('Errore Dropbox: ' + event.data.error, 'error');
+      }
+    };
+    window.addEventListener('message', handleMessage);
+    return () => window.removeEventListener('message', handleMessage);
+  }, [dbxConfig]);
 
   // --- Helpers ---
 
@@ -506,25 +418,18 @@ export default function App() {
     }
   };
 
-  const connectDropbox = async () => {
+  const connectDropbox = () => {
     const appKey = dbxConfig.appKey?.trim();
-    if (!appKey) {
-      showToast('Inserisci App Key prima di collegare', 'error');
+    const appSecret = dbxConfig.appSecret?.trim();
+
+    if (!appKey || !appSecret) {
+      showToast('Inserisci App Key e App Secret prima di collegare', 'error');
       return;
     }
+    const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+    const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&token_access_type=offline`;
     
-    try {
-      const verifier = generateCodeVerifier();
-      localStorage.setItem('dropbox_code_verifier', verifier);
-      const challenge = await generateCodeChallenge(verifier);
-      
-      const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(getRedirectUri())}&response_type=code&code_challenge=${challenge}&code_challenge_method=S256&token_access_type=offline`;
-      
-      // Reindirizziamo direttamente invece di usare un popup per maggiore compatibilità
-      window.location.href = authUrl;
-    } catch (err: any) {
-      showToast('Errore durante la generazione dei parametri OAuth: ' + err.message, 'error');
-    }
+    window.open(authUrl, 'dropbox_auth', 'width=600,height=700');
   };
 
   const publishToDropbox = async () => {
@@ -1159,9 +1064,8 @@ export default function App() {
                 <div className="mt-3 p-2 bg-black/20 rounded border border-white/5">
                   <div className="text-[9px] uppercase font-bold text-[#7070a0] mb-1">Redirect URI da aggiungere su Dropbox:</div>
                   <div className="text-[10px] font-mono text-[#0061ff] break-all select-all">
-                    {getRedirectUri()}
+                    {window.location.origin}/auth/dropbox/callback
                   </div>
-                  <div className="text-[8px] text-[var(--muted)] mt-1 italic">Nota: Copia esattamente questo URL nelle impostazioni Dropbox (App Console).</div>
                 </div>
                 {dbxConfig.refreshToken && <div className="text-[10px] text-[#00e676] font-mono mt-2 text-center">✓ Refresh Token salvato (Connessione permanente)</div>}
               </div>
@@ -1169,19 +1073,7 @@ export default function App() {
               <div className="mb-[18px]">
                 <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5 flex items-center justify-between">
                   <span>Dropbox Access Token (Manuale)</span>
-                  <div className="flex items-center gap-2">
-                    {timeLeft && (
-                      <span className={cn(
-                        "text-[10px] font-bold px-2 py-0.5 rounded border animate-pulse",
-                        timeLeft === 'SCADUTO' 
-                          ? "bg-red-500/20 border-red-500/40 text-red-500" 
-                          : "bg-orange-500/20 border-orange-500/40 text-orange-500"
-                      )}>
-                        ⏳ {timeLeft}
-                      </span>
-                    )}
-                    <span className="text-[10px] normal-case font-normal text-[#ff3c3c]">Scade ogni 4 ore</span>
-                  </div>
+                  <span className="text-[10px] normal-case font-normal text-[#ff3c3c]">Scade ogni 4 ore</span>
                 </label>
                 <input type="password" value={dbxConfig.token} onChange={e => setDbxConfig({...dbxConfig, token: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
                 <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ Usa questo solo se non vuoi usare App Key/Secret</div>
