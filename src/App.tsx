@@ -116,6 +116,11 @@ export default function App() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [datesUpdated, setDatesUpdated] = useState(false);
   const [lockedPubDate, setLockedPubDate] = useState('');
+  const [dbxTokenExpiry, setDbxTokenExpiry] = useState<number | null>(() => {
+    const saved = localStorage.getItem('zoo105_dbx_expiry');
+    return saved ? parseInt(saved, 10) : null;
+  });
+  const [timeLeft, setTimeLeft] = useState<string>('');
 
   // --- Refs for Modals ---
   const tNomeRef = useRef<HTMLInputElement>(null);
@@ -151,6 +156,47 @@ export default function App() {
   };
 
   // --- Effects ---
+  useEffect(() => {
+    if (dbxTokenExpiry) {
+      localStorage.setItem('zoo105_dbx_expiry', String(dbxTokenExpiry));
+    } else {
+      localStorage.removeItem('zoo105_dbx_expiry');
+    }
+  }, [dbxTokenExpiry]);
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      if (!dbxTokenExpiry || !dbxConfig.token) {
+        setTimeLeft('');
+        return;
+      }
+      const now = Date.now();
+      const diff = dbxTokenExpiry - now;
+      if (diff <= 0) {
+        setTimeLeft('SCADUTO');
+        return;
+      }
+      const h = Math.floor(diff / 3600000);
+      const m = Math.floor((diff % 3600000) / 60000);
+      const s = Math.floor((diff % 60000) / 1000);
+      setTimeLeft(`${h}h ${String(m).padStart(2, '0')}m ${String(s).padStart(2, '0')}s`);
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [dbxTokenExpiry, dbxConfig.token]);
+
+  // Gestione Reset Timer quando cambia il token
+  const lastTokenRef = useRef(dbxConfig.token);
+  useEffect(() => {
+    if (dbxConfig.token && dbxConfig.token !== lastTokenRef.current) {
+      const fourHours = 4 * 60 * 60 * 1000;
+      setDbxTokenExpiry(Date.now() + fourHours);
+      lastTokenRef.current = dbxConfig.token;
+    } else if (!dbxConfig.token) {
+      setDbxTokenExpiry(null);
+      lastTokenRef.current = '';
+    }
+  }, [dbxConfig.token]);
+
   useEffect(() => {
     // Gestione Callback OAuth (Direttamente nel componente per GitHub Pages)
     const handleUrlCallback = async () => {
@@ -1123,7 +1169,19 @@ export default function App() {
               <div className="mb-[18px]">
                 <label className="block font-mono text-[12px] font-bold tracking-[1px] uppercase text-[var(--muted)] mb-1.5 flex items-center justify-between">
                   <span>Dropbox Access Token (Manuale)</span>
-                  <span className="text-[10px] normal-case font-normal text-[#ff3c3c]">Scade ogni 4 ore</span>
+                  <div className="flex items-center gap-2">
+                    {timeLeft && (
+                      <span className={cn(
+                        "text-[10px] font-bold px-2 py-0.5 rounded border animate-pulse",
+                        timeLeft === 'SCADUTO' 
+                          ? "bg-red-500/20 border-red-500/40 text-red-500" 
+                          : "bg-orange-500/20 border-orange-500/40 text-orange-500"
+                      )}>
+                        ⏳ {timeLeft}
+                      </span>
+                    )}
+                    <span className="text-[10px] normal-case font-normal text-[#ff3c3c]">Scade ogni 4 ore</span>
+                  </div>
                 </label>
                 <input type="password" value={dbxConfig.token} onChange={e => setDbxConfig({...dbxConfig, token: e.target.value})} className="w-full bg-[var(--surface2)] border border-[var(--border)] text-[var(--text)] p-2.5 rounded-lg font-mono text-sm outline-none focus:border-[var(--accent2)]" />
                 <div className="font-mono text-[12px] text-[var(--muted)] mt-1.5 leading-relaxed">→ Usa questo solo se non vuoi usare App Key/Secret</div>
