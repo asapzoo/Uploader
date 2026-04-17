@@ -125,6 +125,11 @@ export default function App() {
   const tMaskDescRef = useRef<HTMLInputElement>(null);
 
   // --- Helpers for PKCE ---
+  const getRedirectUri = () => {
+    // Rimuoviamo slash finale se presente per coerenza con la configurazione manuale
+    return (window.location.origin + window.location.pathname).replace(/\/$/, "");
+  };
+
   const generateCodeVerifier = () => {
     const array = new Uint8Array(32);
     window.crypto.getRandomValues(array);
@@ -168,7 +173,7 @@ export default function App() {
           params.append('grant_type', 'authorization_code');
           params.append('client_id', dbxConfig.appKey?.trim() || '');
           params.append('code_verifier', verifier);
-          params.append('redirect_uri', window.location.origin + window.location.pathname);
+          params.append('redirect_uri', getRedirectUri());
 
           const response = await fetch('https://api.dropbox.com/oauth2/token', {
             method: 'POST',
@@ -460,8 +465,7 @@ export default function App() {
       localStorage.setItem('dropbox_code_verifier', verifier);
       const challenge = await generateCodeChallenge(verifier);
       
-      const redirectUri = window.location.origin + window.location.pathname;
-      const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(redirectUri)}&response_type=code&code_challenge=${challenge}&code_challenge_method=S256&token_access_type=offline`;
+      const authUrl = `https://www.dropbox.com/oauth2/authorize?client_id=${appKey}&redirect_uri=${encodeURIComponent(getRedirectUri())}&response_type=code&code_challenge=${challenge}&code_challenge_method=S256&token_access_type=offline`;
       
       // Reindirizziamo direttamente invece di usare un popup per maggiore compatibilità
       window.location.href = authUrl;
@@ -1102,9 +1106,9 @@ export default function App() {
                 <div className="mt-3 p-2 bg-black/20 rounded border border-white/5">
                   <div className="text-[9px] uppercase font-bold text-[#7070a0] mb-1">Redirect URI da aggiungere su Dropbox:</div>
                   <div className="text-[10px] font-mono text-[#0061ff] break-all select-all">
-                    {window.location.origin + window.location.pathname}
+                    {getRedirectUri()}
                   </div>
-                  <div className="text-[8px] text-[var(--muted)] mt-1 italic">Nota: Questo metodo non richiede App Secret e funziona anche su GitHub Pages.</div>
+                  <div className="text-[8px] text-[var(--muted)] mt-1 italic">Nota: Copia esattamente questo URL nelle impostazioni Dropbox (App Console).</div>
                 </div>
                 {dbxConfig.refreshToken && <div className="text-[10px] text-[#00e676] font-mono mt-2 text-center">✓ Refresh Token salvato (Connessione permanente)</div>}
               </div>
