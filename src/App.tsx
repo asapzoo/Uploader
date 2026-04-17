@@ -145,7 +145,8 @@ export default function App() {
         try {
           setLoading(true);
           setStatus('Scambio codice Dropbox...');
-          const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+          const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
+          const redirectUri = `${baseUrl}/auth/dropbox/callback`;
           
           let data;
           let serverError = null;
@@ -470,7 +471,8 @@ export default function App() {
       showToast('Inserisci App Key e App Secret prima di collegare', 'error');
       return;
     }
-    const redirectUri = `${window.location.origin}/auth/dropbox/callback`;
+    const baseUrl = window.location.origin + window.location.pathname.replace(/\/$/, '');
+    const redirectUri = `${baseUrl}/auth/dropbox/callback`;
     
     // Su host statici o se non siamo su Cloud Run, usiamo PKCE
     const isCloudRun = window.location.hostname.includes('run.app');
