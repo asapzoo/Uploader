@@ -1,5 +1,6 @@
 {
   "name": "XML Uploader",
   "description": "A web application.",
-  "requestFramePermissions": []
+  "requestFramePermissions": [],
+  "majorCapabilities": []
 }
