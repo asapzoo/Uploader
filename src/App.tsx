@@ -23,7 +23,9 @@ import {
   X,
   Download,
   Upload,
-  Share2
+  Share2,
+  Sparkles,
+  Zap
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { cn } from './lib/utils';
@@ -117,6 +119,8 @@ export default function App() {
   const [toast, setToast] = useState<{ msg: string; type: 'success' | 'error' | 'info' } | null>(null);
   const [datesUpdated, setDatesUpdated] = useState(false);
   const [lockedPubDate, setLockedPubDate] = useState('');
+  const [isAutoMagicOpen, setIsAutoMagicOpen] = useState(false);
+  const [autoMagicUrl, setAutoMagicUrl] = useState('');
 
   // --- Refs for Modals ---
   const tNomeRef = useRef<HTMLInputElement>(null);
@@ -309,12 +313,12 @@ export default function App() {
     return `<item>\n<title>${esc(itemTitle)}</title>\n<link>${esc(mediaUrl)}</link>\n<description>${esc(itemDesc)}</description>\n<pubDate>${date}</pubDate>\n<guid isPermaLink="${isPermaLink}">${guid}</guid>\n<enclosure length="${fileLength}" type="${mimeType}" url="${esc(mediaUrl)}"/>\n</item>`;
   };
 
-  const updateXmlLogic = (currentXml: string, newItem: string) => {
+  const updateXmlLogic = (currentXml: string, newItem: string, customDate?: string) => {
     const MARKER = '<!-- Puntate Giornaliere -->';
     const markerIdx = currentXml.indexOf(MARKER);
     if (markerIdx === -1) throw new Error('Marker "' + MARKER + '" non trovato nel RSS');
 
-    const finalDate = getPubDate();
+    const finalDate = customDate || getPubDate();
 
     // Update pubDate of fixed items (before marker)
     const beforeMarker = currentXml.slice(0, markerIdx);
@@ -354,109 +358,12 @@ export default function App() {
     if (!datesUpdated) { showToast('⚠ Prima aggiorna le date degli item fissi!', 'error'); return; }
 
     setLoading(true);
-    setStatus('1/3 — Lettura file XML da GitHub...');
+    setStatus('Pubblicazione su GitHub...');
     try {
-      const owner = ghConfig.owner.trim();
-      const repo = ghConfig.repo.trim();
-      const path = ghConfig.path.trim();
-      const branch = ghConfig.branch.trim();
-      const token = ghConfig.token.trim();
-
-      if (!owner || !repo || !path) {
-        throw new Error("Configurazione GitHub incompleta (Owner, Repo o Path mancanti)");
-      }
-
-      // Pulizia path: rimuoviamo slash iniziali e codifichiamo ogni segmento separatamente
-      const cleanPath = path.startsWith('/') ? path.substring(1) : path;
-      const encodedPath = cleanPath.split('/').map(part => encodeURIComponent(part)).join('/');
-      
-      const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}&t=${Date.now()}`;
-      
-      let getResp;
-      try {
-        getResp = await fetch(url, { 
-          headers: { 
-            'Authorization': `token ${token}`, 
-            'Accept': 'application/vnd.github.v3+json'
-          } 
-        });
-      } catch (fetchErr) {
-        console.error('Fetch Error:', fetchErr);
-        throw new Error("Errore di rete o CORS: Impossibile contattare GitHub.");
-      }
-      if (!getResp.ok) { 
-        const e = await getResp.json(); 
-        throw new Error(`GitHub API (Read): ${e.message || getResp.status}`); 
-      }
-      const fileData = await getResp.json();
-      const sha = fileData.sha;
-
-      // Decodifica robusta per Safari/iOS
-      const fromBase64 = (b64: string) => {
-        const bin = window.atob(b64.replace(/\s/g, ''));
-        const u8 = new Uint8Array(bin.length);
-        for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
-        return new TextDecoder().decode(u8);
-      };
-      
-      const currentXml = fromBase64(fileData.content);
-
-      setStatus('2/3 — Aggiornamento XML...');
-      const updatedXml = updateXmlLogic(currentXml, newItem);
-
-      setStatus('3/3 — Pubblicazione su GitHub...');
-      
-      // Funzione robusta per Base64 compatibile con UTF-8 e Safari/iOS
-      const toBase64 = (str: string) => {
-        const bytes = new TextEncoder().encode(str);
-        let binary = '';
-        for (let i = 0; i < bytes.byteLength; i++) {
-          binary += String.fromCharCode(bytes[i]);
-        }
-        return window.btoa(binary);
-      };
-
-      if (!sha) throw new Error("SHA del file non trovato. Riprova.");
-      if (!branch) throw new Error("Branch non configurato.");
-
-      let putResp;
-      try {
-        putResp = await fetch(
-          `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`,
-          {
-            method: 'PUT',
-            headers: { 
-              'Authorization': `token ${token}`, 
-              'Accept': 'application/vnd.github.v3+json', 
-              'Content-Type': 'application/json' 
-            },
-            body: JSON.stringify({ 
-              message: `Add: ${itemTitle}`, 
-              content: toBase64(updatedXml), 
-              sha, 
-              branch: branch 
-            })
-          }
-        );
-      } catch (putErr) {
-        console.error('Put Fetch Error:', putErr);
-        throw new Error("Errore di rete durante l'invio a GitHub.");
-      }
-      if (!putResp.ok) { 
-        const e = await putResp.json(); 
-        if (putResp.status === 409) {
-          throw new Error("Conflitto di versione (409). Riprova tra pochi secondi, GitHub sta ancora processando il file.");
-        }
-        if (putResp.status === 400) {
-          throw new Error(`Errore 400 (Bad Request): ${e.message || 'Dati inviati non validi'}. Verifica che il branch "${ghConfig.branch}" esista.`);
-        }
-        throw new Error(`Push fallito (${putResp.status}): ${e.message || JSON.stringify(e)}`); 
-      }
-
+      await performGithubPublish(newItem, lockedPubDate, itemTitle);
       showToast(`✓ "${itemTitle}" pubblicato su GitHub!`, 'success');
-      setDatesUpdated(false);
     } catch (err: any) {
-      showToast('Errore: ' + err.message, 'error');
+      showToast('Errore GitHub: ' + err.message, 'error');
     } finally {
       setLoading(false);
       setStatus('');
@@ -494,7 +401,7 @@ export default function App() {
 
   const publishToDropbox = async () => {
     if (!dbxConfig.token && !dbxConfig.refreshToken) { 
-      showToast('Configura Dropbox prima (Token o App Key/Secret)', 'error'); 
+      showToast('Configura Dropbox prima', 'error'); 
       return; 
     }
     const newItem = buildXmlItem();
@@ -502,51 +409,12 @@ export default function App() {
     if (!datesUpdated) { showToast('⚠ Prima aggiorna le date degli item fissi!', 'error'); return; }
 
     setLoading(true);
-    setStatus('1/3 — Lettura file XML da Dropbox...');
+    setStatus('Pubblicazione su Dropbox...');
     try {
-      const dbx = new DropboxService({
-        accessToken: dbxConfig.token,
-        refreshToken: dbxConfig.refreshToken,
-        clientId: dbxConfig.appKey,
-        clientSecret: dbxConfig.appSecret
-      });
-      let currentXml = '';
-      
-      try {
-        currentXml = await dbx.downloadFile(dbxConfig.path);
-      } catch (err: any) {
-        if (err.message.includes('non trovato')) {
-          throw new Error(`Il file "${dbxConfig.path}" non esiste su Dropbox. Crealo manualmente nel tuo Dropbox prima di caricare, oppure controlla che il percorso sia corretto (deve iniziare con /).`);
-        }
-        throw err;
-      }
-
-      setStatus('2/3 — Aggiornamento XML...');
-      const updatedXml = updateXmlLogic(currentXml, newItem);
-
-      setStatus('3/3 — Pubblicazione su Dropbox...');
-      await dbx.uploadFile(dbxConfig.path, updatedXml);
-
-      // Salvataggio copia di backup nella cartella "xml rss" con data ITA
-      try {
-        const now = new Date();
-        const day = String(now.getDate()).padStart(2, '0');
-        const month = String(now.getMonth() + 1).padStart(2, '0');
-        const year = now.getFullYear();
-        const dateStr = `${day}-${month}-${year}`;
-        const backupPath = `/xml rss/105Zoo-${dateStr}.xml`;
-        
-        await dbx.uploadFile(backupPath, updatedXml);
-        console.log(`Backup ${backupPath} salvato con successo`);
-      } catch (backupErr) {
-        console.error('Errore durante il salvataggio del backup:', backupErr);
-        // Non blocchiamo l'operazione principale se il backup fallisce
-      }
-
-      showToast(`✓ "${itemTitle}" pubblicato su Dropbox! (Backup creato in /xml rss/)`, 'success');
-      setDatesUpdated(false);
+      await performDropboxPublish(newItem, lockedPubDate, itemTitle);
+      showToast(`✓ "${itemTitle}" pubblicato su Dropbox!`, 'success');
     } catch (err: any) {
-      showToast(err.message, 'error');
+      showToast('Errore Dropbox: ' + err.message, 'error');
     } finally {
       setLoading(false);
       setStatus('');
@@ -710,6 +578,186 @@ export default function App() {
     }
   };
 
+  const handleAutoMagic = async (urlToUse?: string) => {
+    const url = urlToUse || autoMagicUrl;
+    if (!url) {
+      showToast('Inserisci un URL valido', 'error');
+      return;
+    }
+
+    try {
+      setLoading(true);
+      setStatus('Inizializzazione Auto-Push...');
+      
+      // 1. Detect extension and set MIME / Type
+      let typeId = 'zoo';
+      let currentMime = 'audio/mpeg';
+      let currentLength = '100123123';
+      
+      if (url.toLowerCase().endsWith('.mp4')) {
+        typeId = 'zootv';
+        currentMime = 'video/mp4';
+        currentLength = '0';
+      } else if (url.toLowerCase().endsWith('.mp3')) {
+        typeId = 'zoo'; // Sempre Zoo Settimana per mp3 come richiesto
+        currentMime = 'audio/mpeg';
+        currentLength = '100123123';
+      }
+
+      // 2. Set Date to NOW (No extraction from URL)
+      const now = new Date();
+      const d = now.getDate();
+      const m = now.getMonth() + 1;
+      const y = now.getFullYear();
+      
+      const finalDate = formatRfc822(now);
+
+      // 3. Prepare Item Data
+      const selectedType = [...FIXED_TYPES, ...customTypes].find(t => t.id === typeId);
+      if (!selectedType) throw new Error("Tipo episodio non trovato");
+
+      const title = applyMaskWith(selectedType.maskTitle, d, m, y);
+      const desc = applyMaskWith(selectedType.maskDesc, d, m, y);
+      const guid = extractGuid(url);
+
+      // Sync local state for UI visibility
+      setMediaUrl(url);
+      setMimeType(currentMime);
+      setFileLength(currentLength);
+      setDay(d);
+      setMonth(m);
+      setYear(y);
+      setItemTitle(title);
+      setItemDesc(desc);
+      setItemGuid(guid);
+      setSelectedTypeId(typeId);
+      setLockedPubDate(finalDate);
+      setDatesUpdated(true);
+
+      const newItem = `<item>\n<title>${esc(title)}</title>\n<link>${esc(url)}</link>\n<description>${esc(desc)}</description>\n<pubDate>${finalDate}</pubDate>\n<guid isPermaLink="${isPermaLink}">${guid}</guid>\n<enclosure length="${currentLength}" type="${currentMime}" url="${esc(url)}"/>\n</item>`;
+
+      setIsAutoMagicOpen(false);
+      setAutoMagicUrl('');
+
+      // 4. AUTO PUBLISH TO BOTH
+      let successMsg = 'Auto-Push completato! ✨';
+      
+      const results = await Promise.allSettled([
+        (async () => {
+          if (ghConfig.token) {
+            setStatus('Pubblicazione su GitHub...');
+            await performGithubPublish(newItem, finalDate, title);
+            return 'GitHub ✓';
+          }
+          return null;
+        })(),
+        (async () => {
+          if (dbxConfig.token || dbxConfig.refreshToken) {
+            setStatus('Pubblicazione su Dropbox...');
+            await performDropboxPublish(newItem, finalDate, title);
+            return 'Dropbox ✓';
+          }
+          return null;
+        })()
+      ]);
+
+      const finished = results
+        .filter((r): r is PromiseFulfilledResult<string | null> => r.status === 'fulfilled' && r.value !== null)
+        .map(r => r.value);
+
+      if (finished.length > 0) {
+        showToast(`Auto-Push: ${finished.join(' e ')} completati!`, 'success');
+      } else {
+        showToast('Auto-Push pronti in locale (nessun account configurato per l\'invio)', 'info');
+      }
+      
+    } catch (err: any) {
+      console.error(err);
+      showToast('Errore Auto-Push: ' + err.message, 'error');
+    } finally {
+      setLoading(false);
+      setStatus('');
+    }
+  };
+
+  const performGithubPublish = async (newItem: string, finalDate: string, title: string) => {
+    const owner = ghConfig.owner.trim();
+    const repo = ghConfig.repo.trim();
+    const path = ghConfig.path.trim();
+    const branch = ghConfig.branch.trim();
+    const token = ghConfig.token.trim();
+
+    if (!owner || !repo || !path || !token) throw new Error("Configurazione GitHub incompleta");
+
+    const cleanPath = path.startsWith('/') ? path.substring(1) : path;
+    const encodedPath = cleanPath.split('/').map(part => encodeURIComponent(part)).join('/');
+    const url = `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}?ref=${encodeURIComponent(branch)}&t=${Date.now()}`;
+    
+    const getResp = await fetch(url, { 
+      headers: { 'Authorization': `token ${token}`, 'Accept': 'application/vnd.github.v3+json' } 
+    });
+    if (!getResp.ok) throw new Error(`GitHub Read: ${getResp.status}`);
+    
+    const fileData = await getResp.json();
+    const sha = fileData.sha;
+
+    const fromBase64 = (b64: string) => {
+      const bin = window.atob(b64.replace(/\s/g, ''));
+      const u8 = new Uint8Array(bin.length);
+      for (let i = 0; i < bin.length; i++) u8[i] = bin.charCodeAt(i);
+      return new TextDecoder().decode(u8);
+    };
+
+    const updatedXml = updateXmlLogic(fromBase64(fileData.content), newItem, finalDate);
+
+    const toBase64 = (str: string) => {
+      const bytes = new TextEncoder().encode(str);
+      let binary = '';
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      return window.btoa(binary);
+    };
+
+    const putResp = await fetch(
+      `https://api.github.com/repos/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}/contents/${encodedPath}`,
+      {
+        method: 'PUT',
+        headers: { 
+          'Authorization': `token ${token}`, 
+          'Accept': 'application/vnd.github.v3+json', 
+          'Content-Type': 'application/json' 
+        },
+        body: JSON.stringify({ 
+          message: `Auto-Push: ${title}`, 
+          content: toBase64(updatedXml), 
+          sha, 
+          branch 
+        })
+      }
+    );
+    if (!putResp.ok) throw new Error(`GitHub Push: ${putResp.status}`);
+    setDatesUpdated(false);
+  };
+
+  const performDropboxPublish = async (newItem: string, finalDate: string, title: string) => {
+    const dbx = new DropboxService({
+      accessToken: dbxConfig.token,
+      refreshToken: dbxConfig.refreshToken,
+      clientId: dbxConfig.appKey,
+      clientSecret: dbxConfig.appSecret
+    });
+    
+    const currentXml = await dbx.downloadFile(dbxConfig.path);
+    const updatedXml = updateXmlLogic(currentXml, newItem, finalDate);
+    await dbx.uploadFile(dbxConfig.path, updatedXml);
+
+    try {
+      const now = new Date();
+      const ds = `${String(now.getDate()).padStart(2,'0')}-${String(now.getMonth()+1).padStart(2,'0')}-${now.getFullYear()}`;
+      await dbx.uploadFile(`/xml rss/105Zoo-${ds}.xml`, updatedXml);
+    } catch (e) { console.error("Backup skip", e); }
+    setDatesUpdated(false);
+  };
+
   // --- Render ---
 
   return (
@@ -759,7 +807,15 @@ export default function App() {
             01 — Tipo episodio
           </div>
 
-          <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mb-2.5">Tipi fissi</div>
+          <div className="font-mono text-[12px] font-bold tracking-[2px] uppercase text-[var(--muted)] mb-2.5 flex items-center justify-between">
+            <span>Tipi fissi</span>
+            <button 
+              onClick={() => setIsAutoMagicOpen(true)}
+              className="bg-[#ff3c3c] hover:bg-[#ff5555] text-white px-3 py-1 rounded-md font-sans font-bold text-[10px] tracking-wider flex items-center gap-1.5 shadow-[0_0_10px_rgba(255,60,60,0.3)] transition-all"
+            >
+              <Zap size={12} fill="currentColor" /> AUTO PUSH
+            </button>
+          </div>
           <div className="grid grid-cols-2 sm:grid-cols-[repeat(auto-fill,minmax(140px,1fr))] gap-2.5">
             {FIXED_TYPES.map(t => (
               <button
@@ -1266,6 +1322,73 @@ export default function App() {
           </div>
         </div>
       )}
+
+      {/* Auto-Magic Modal */}
+      <AnimatePresence>
+        {isAutoMagicOpen && (
+          <motion.div 
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/85 z-[210] flex items-center justify-center p-4 backdrop-blur-md"
+            onClick={() => setIsAutoMagicOpen(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }}
+              className="bg-[linear-gradient(145deg,#12121a,#1a1a26)] border border-[#ff3c3c] rounded-2xl p-8 w-full max-w-[500px] shadow-[0_0_40px_rgba(255,60,60,0.2)]"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center gap-3 mb-2">
+                <div className="w-10 h-10 bg-[#ff3c3c] rounded-lg flex items-center justify-center shadow-[0_0_15px_rgba(255,60,60,0.5)]">
+                  <Zap size={24} color="white" fill="white" />
+                </div>
+                <div>
+                  <div className="font-sans font-bold text-2xl tracking-widest text-white">Auto-Push</div>
+                  <div className="font-mono text-[10px] text-[#ff3c3c] uppercase tracking-widest">Compilazione Intelligente</div>
+                </div>
+              </div>
+              
+              <div className="my-6">
+                <label className="block font-mono text-[11px] font-bold tracking-[1px] uppercase text-[#7070a0] mb-2">Incolla l'URL del file media (.mp3 o .mp4)</label>
+                <div className="relative">
+                  <input 
+                    type="url" 
+                    autoFocus
+                    value={autoMagicUrl} 
+                    onChange={e => setAutoMagicUrl(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleAutoMagic()}
+                    placeholder="https://server.com/nome-file.mp3" 
+                    className="w-full bg-[#050508] border-2 border-[#2a2a3e] text-white p-4 pr-12 rounded-xl font-mono text-sm outline-none focus:border-[#ff3c3c] transition-all"
+                  />
+                  <div className="absolute right-4 top-1/2 -translate-y-1/2 text-[#2a2a3e]">
+                    <Sparkles size={18} />
+                  </div>
+                </div>
+                <div className="text-[10px] font-mono text-[#7070a0] mt-3 leading-relaxed">
+                  Il sistema rileverà automaticamente:<br/>
+                  <span className="text-[#ff3c3c]">●</span> Estensione (.mp3 / .mp4)<br/>
+                  <span className="text-[#ff3c3c]">●</span> Data dell'episodio (dal nome file)<br/>
+                  <span className="text-[#ff3c3c]">●</span> Titolo e Descrizione via Maschera<br/>
+                  <span className="text-[#ff3c3c]">●</span> GUID univoco e Mime Type
+                </div>
+              </div>
+
+              <div className="flex gap-3">
+                <button 
+                  onClick={() => handleAutoMagic()}
+                  className="flex-3 p-4 bg-[#ff3c3c] text-white rounded-xl font-sans font-bold text-lg tracking-[2px] hover:bg-[#ff5555] transition-all shadow-[0_0_20px_rgba(255,60,60,0.3)]"
+                >
+                  PROCEDI ORA
+                </button>
+                <button 
+                  onClick={() => setIsAutoMagicOpen(false)}
+                  className="flex-1 p-4 bg-transparent border border-[#2a2a3e] text-[#7070a0] rounded-xl font-mono text-sm hover:text-white transition-all"
+                >
+                  CHIUDI
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }

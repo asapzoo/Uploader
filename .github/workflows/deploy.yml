@@ -5,6 +5,7 @@ on:
     branches:
       - main
       - Prime # Supporto per il branch richiesto
+      - AutoPush # Nuovo branch richiesto
 
 permissions:
   contents: read
